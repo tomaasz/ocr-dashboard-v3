@@ -156,17 +156,13 @@ def _resolve_host_value(host: dict, json_key: str) -> str | None:
     return text or None
 
 
-def _apply_selected_host_env(env: dict[str, str], host: dict, global_source_root: object) -> None:
+def _apply_selected_host_env(env: dict[str, str], host: dict) -> None:
     """Apply configuration from a selected remote host to env."""
     env["OCR_REMOTE_RUN_ENABLED"] = "1"
     for json_key, env_key in HOST_ENV_MAPPING.items():
         resolved = _resolve_host_value(host, json_key)
         if resolved:
             env[env_key] = resolved
-    if global_source_root is not None:
-        text = str(global_source_root).strip()
-        if text:
-            env["OCR_REMOTE_SOURCE_DIR"] = text
 
 
 def _apply_global_remote_config(env: dict[str, str], config: dict) -> None:
@@ -185,14 +181,13 @@ def _apply_global_remote_config(env: dict[str, str], config: dict) -> None:
 def _apply_remote_hosts_env(env: dict[str, str], remote_host_id: str | int | None = None) -> None:
     """Apply persisted remote host settings to environment."""
     config = get_effective_remote_config()
-    global_source_root = config.get("OCR_REMOTE_SOURCE_DIR")
 
     if remote_host_id is not None:
         hosts = config.get("OCR_REMOTE_HOSTS_LIST")
         if isinstance(hosts, list):
             selected = next((h for h in hosts if str(h.get("id")) == str(remote_host_id)), None)
             if selected:
-                _apply_selected_host_env(env, selected, global_source_root)
+                _apply_selected_host_env(env, selected)
                 return
 
     _apply_global_remote_config(env, config)
@@ -612,6 +607,7 @@ def _extract_host_config(host: dict) -> dict[str, str]:
         ).strip(),
         "python_cmd": str(host.get("python") or "python3").strip(),
         "profile_root": str(host.get("profileRoot") or host.get("profile_root") or "").strip(),
+        "nas_source": str(host.get("nasSource") or host.get("nas_source") or "").strip(),
     }
 
 
@@ -670,8 +666,7 @@ def _apply_config_env(env_dict: dict[str, str], config: dict[str, object] | None
     """Apply profile config values to the env dict."""
     if not config:
         return
-    source_root = get_effective_remote_config().get("OCR_REMOTE_SOURCE_DIR")
-    effective_source = _compose_source_path(config.get("source_path"), source_root)
+    effective_source = _compose_source_path(config.get("source_path"))
     if effective_source:
         env_dict["OCR_SOURCE_DIR"] = effective_source
     if config.get("pg_enabled"):
@@ -733,6 +728,51 @@ def _verify_remote_runpy(
     return None
 
 
+def _ensure_remote_mount(
+    host_user: str, host_addr: str, ssh_opts: str, nas_source: str
+) -> tuple[str | None, str | None]:
+    """Ensure NAS is mounted on remote host via SSHFS.
+
+    Returns:
+        (mount_point, error_message)
+        If success, mount_point is the path, error_message is None.
+        If failure, mount_point is None, error_message contains details.
+    """
+    if not nas_source or ":" not in nas_source:
+        return None, "Nieprawidłowy format ścieżki NAS (oczekiwano user@host:/path)"
+
+    mount_point = "~/ocr_mounts/sources"
+
+    # CMD to check if mounted, if not create dir and mount
+    # usage: sshfs -o allow_other,reconnect user@host:/path /mount/point
+    remote_script = (
+        f"if mount | grep -q {shlex.quote(mount_point)}; then "
+        f"echo MOUNTED; "
+        f"else "
+        f"mkdir -p {shlex.quote(mount_point)} && "
+        f"sshfs -o allow_other,reconnect,ServerAliveInterval=15,ServerAliveCountMax=3 "
+        f"{shlex.quote(nas_source)} {shlex.quote(mount_point)} && "
+        f"echo MOUNTED; "
+        f"fi"
+    )
+
+    parts = _build_ssh_parts(host_user, host_addr, ssh_opts, remote_script, timeout=30)
+
+    try:
+        result = subprocess.run(parts, capture_output=True, text=True, timeout=45)
+        if result.returncode == 0 and "MOUNTED" in result.stdout:
+            return mount_point, None
+
+        # If we failed, capture stderr
+        err = result.stderr.strip() or result.stdout.strip() or "Nieznany błąd montowania"
+        return None, f"Błąd SSHFS: {err}"
+
+    except subprocess.TimeoutExpired:
+        return None, "Timeout podczas montowania NAS (sprawdź klucze SSH do NASa)"
+    except Exception as e:
+        return None, f"Błąd procesu montowania: {e}"
+
+
 def _start_remote_profile_process(
     profile_name: str,
     remote_host_id: str,
@@ -753,6 +793,7 @@ def _start_remote_profile_process(
     host_addr, host_user = hc["host_addr"], hc["host_user"]
     ssh_opts, repo_dir = hc["ssh_opts"], hc["repo_dir"]
     python_cmd, profile_root = hc["python_cmd"], hc["profile_root"]
+    nas_source = hc["nas_source"]
 
     if not host_addr:
         return False, f"Brak adresu hosta dla '{remote_host_id}'"
@@ -769,6 +810,39 @@ def _start_remote_profile_process(
     env_dict = _build_remote_env_dict(
         profile_name, headed, windows, tabs_per_window, profile_root, config
     )
+
+    # Check for per-host NAS source auto-mount
+
+    # If valid NAS source is configured, try to mount it
+    if nas_source and ":" in str(nas_source):
+        mount_point, mount_err = _ensure_remote_mount(
+            host_user, host_addr, ssh_opts, str(nas_source)
+        )
+        if mount_point:
+            # Override OCR_SOURCE_DIR to point to the mount
+            env_dict["OCR_SOURCE_DIR"] = mount_point
+
+            # Log successful mount
+            cwd = Path(__file__).parents[2]
+            log_dir = cwd / "logs" / "profiles"
+            log_file = log_dir / f"{profile_name}.log"
+            try:
+                with log_file.open("a", encoding="utf-8") as log_fp:
+                    log_fp.write(f"[AUTO-MOUNT] Zamontowano NAS {nas_source} w {mount_point}\n")
+            except Exception:
+                pass
+        else:
+            # Log error but proceed (maybe local files exist?)
+            # Or should we fail? Better to fail if specific source was expected but mount failed.
+            # But for now, let's log and proceed, assuming legacy behavior fallback.
+            cwd = Path(__file__).parents[2]
+            log_dir = cwd / "logs" / "profiles"
+            log_file = log_dir / f"{profile_name}.log"
+            try:
+                with log_file.open("a", encoding="utf-8") as log_fp:
+                    log_fp.write(f"[AUTO-MOUNT ERROR] Nie udało się zamontować NAS: {mount_err}\n")
+            except Exception:
+                pass
 
     # Build remote command
     env_str = " ".join(f"{k}={shlex.quote(str(v))}" for k, v in env_dict.items())
@@ -1113,12 +1187,7 @@ def _resolve_profile_source_dir(config: dict[str, object]) -> str | None:
         if source_path_str in (str(Path.home()), "/home/tomaasz"):
             source_path_cfg = None
 
-    # Only use remote source dir for remote/ssh execution modes
-    remote_source_root = None
-    if config.get("execution_mode") != "local":
-        remote_source_root = get_effective_remote_config().get("OCR_REMOTE_SOURCE_DIR")
-
-    return _compose_source_path(source_path_cfg, remote_source_root)
+    return _compose_source_path(source_path_cfg)
 
 
 def _env_set_bool(

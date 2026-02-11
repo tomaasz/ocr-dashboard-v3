@@ -41,7 +41,6 @@ DEFAULT_SCANS_PER_WORKER = _get_int(["OCR_DEFAULT_SCANS_PER_WORKER", "OCR_SCANS_
 REMOTE_HOST = os.environ.get("OCR_REMOTE_HOST")
 REMOTE_USER = os.environ.get("OCR_REMOTE_USER") or os.environ.get("USER")
 REMOTE_REPO_DIR = os.environ.get("OCR_REMOTE_REPO_DIR") or str(BASE_DIR)
-REMOTE_SOURCE_DIR = os.environ.get("OCR_REMOTE_SOURCE_DIR")
 REMOTE_SSH_OPTS = os.environ.get("OCR_REMOTE_SSH_OPTS", "-o BatchMode=yes -o ConnectTimeout=8")
 REMOTE_ENABLED = bool(REMOTE_HOST)
 
@@ -86,16 +85,13 @@ UPDATE_COUNTS_NOTIFY_ENABLED = os.environ.get(
     "OCR_UPDATE_COUNTS_NOTIFY_ENABLED", "1"
 ).strip().lower() in ("1", "true", "yes")
 try:
-    UPDATE_COUNTS_POLL_SEC = int(
-        os.environ.get("OCR_UPDATE_COUNTS_POLL_SEC", "60").strip()
-    )
+    UPDATE_COUNTS_POLL_SEC = int(os.environ.get("OCR_UPDATE_COUNTS_POLL_SEC", "60").strip())
 except Exception:
     UPDATE_COUNTS_POLL_SEC = 60
 UPDATE_COUNTS_POLL_SEC = max(0, UPDATE_COUNTS_POLL_SEC)
-UPDATE_COUNTS_ON_NEW_PATHS = (
-    os.environ.get("OCR_UPDATE_COUNTS_ON_NEW_PATHS", "1").strip().lower()
-    in ("1", "true", "yes")
-)
+UPDATE_COUNTS_ON_NEW_PATHS = os.environ.get(
+    "OCR_UPDATE_COUNTS_ON_NEW_PATHS", "1"
+).strip().lower() in ("1", "true", "yes")
 
 # Misc Flags
 FORCE_ALL_PROFILES_PRO = os.environ.get("OCR_FORCE_ALL_PROFILES_PRO", "0") == "1"

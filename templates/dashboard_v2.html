@@ -3032,177 +3032,16 @@
                     </div>
                 </div>
                 <div class="card-body">
-                     <div class="settings-grid" style="margin-bottom: 12px;">
-                        <div class="form-group" style="grid-column: span 2;">
-                            <label class="form-label">Globalny katalog źródłowy (dla wszystkich hostów)</label>
-                            <input type="text" class="form-input" id="settingGlobalSourceRoot" placeholder="/data/sources">
-                            <small class="text-secondary" style="font-size: 11px;">Bazowy katalog montowania źródeł (np. /data/sources/nas). W „Ścieżka źródłowa" podajesz tylko podkatalog.</small>
-                        </div>
-                     </div>
+
                      <div id="remoteHostsContainer" class="host-grid">
                         <!-- Dynamic Content -->
                      </div>
                 </div>
             </div>
 
-            <!-- Remote Deployment -->
-            <div class="card settings-card-full">
-                <div class="card-header" style="cursor: pointer;" onclick="toggleDeploymentForm()">
-                     <div class="flex items-center gap-sm" style="flex: 1;">
-                         <svg id="deploymentChevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition: transform 0.2s;">
-                             <polyline points="9 18 15 12 9 6"></polyline>
-                         </svg>
-                         <div>
-                             <h3 class="card-title" style="margin: 0;">Remote Deployment</h3>
-                             <p class="text-secondary" style="font-size: 12px; margin-top: 4px;">Automatyczne wdrożenie nowego hosta OCR</p>
-                         </div>
-                     </div>
-                     <span class="badge badge-secondary" style="font-size: 11px;">Kliknij aby rozwinąć</span>
-                </div>
-                <div id="deploymentFormBody" class="card-body" style="display: none;">
-                    <form id="remoteDeploymentForm" onsubmit="deployRemoteHost(event)">
-                        <div class="settings-grid" style="grid-template-columns: repeat(2, 1fr);">
-                            
-                            <!-- OS Type Selection -->
-                            <div class="form-group" style="grid-column: span 2;">
-                                <label class="form-label">System operacyjny</label>
-                                <div class="flex gap-sm">
-                                    <label class="checkbox-label">
-                                        <input type="radio" name="deployOsType" value="ubuntu" checked>
-                                        <span>Ubuntu 20.04+</span>
-                                    </label>
-                                    <label class="checkbox-label">
-                                        <input type="radio" name="deployOsType" value="arch">
-                                        <span>Arch Linux</span>
-                                    </label>
-                                    <label class="checkbox-label">
-                                        <input type="radio" name="deployOsType" value="windows">
-                                        <span>Windows 11</span>
-                                    </label>
-                                </div>
-                            </div>
-                            
-                            <!-- Host Name -->
-                            <div class="form-group" style="grid-column: span 2;">
-                                <label class="form-label" for="deployHostname">Nazwa hosta (opcjonalne)</label>
-                                <input type="text" class="form-input" id="deployHostname" placeholder="np. ocr-worker-01, ubuntu-nas-01">
-                                <small class="text-secondary" style="font-size: 11px;">Przyjazna nazwa do identyfikacji hosta w systemie</small>
-                            </div>
-                            
-                            <!-- SSH Connection -->
-                            <div class="form-group">
-                                <label class="form-label" for="deployHost">Host (IP/DNS)</label>
-                                <input type="text" class="form-input" id="deployHost" placeholder="192.168.1.100" required>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label" for="deployUser">Użytkownik SSH</label>
-                                <input type="text" class="form-input" id="deployUser" placeholder="root" required>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label" for="deploySudoPassword">Hasło użytkownika (sudo)</label>
-                                <div style="position: relative;">
-                                    <input type="password" class="form-input" id="deploySudoPassword" placeholder="Wymagane do instalacji pakietów" style="padding-right: 40px;">
-                                    <button type="button" class="btn btn-ghost btn-icon" onclick="togglePasswordVisibility('deploySudoPassword', this)" style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); padding: 4px;" title="Pokaż/ukryj hasło">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="eye-icon">
-                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                            <circle cx="12" cy="12" r="3"/>
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <div class="form-group" style="grid-column: span 2;">
-                                <label class="form-label" for="deploySshOpts">Opcje SSH (opcjonalne)</label>
-                                <input type="text" class="form-input" id="deploySshOpts" placeholder="-p 22 -i ~/.ssh/id_rsa">
-                                <small class="text-secondary" style="font-size: 11px;">np. -p 2222 -i /path/to/key</small>
-                            </div>
-                            
-                            <hr class="settings-section-divider" style="grid-column: span 2;">
-                            
-                            <!-- Configuration -->
-                            <div class="settings-section-divider text-sm font-medium text-secondary" style="grid-column: span 2;">Konfiguracja</div>
-                            
-                            <div class="form-group" style="grid-column: span 2;">
-                                <label class="form-label" for="deployGithubRepo">GitHub Repository</label>
-                                <input type="text" class="form-input" id="deployGithubRepo" value="https://github.com/tomaasz/ocr-dashboard-v3" placeholder="https://github.com/user/ocr-dashboard-v3">
-                            </div>
-                            
-                            <div class="form-group">
-                                <label class="form-label" for="deployNasHost">NAS Host</label>
-                                <input type="text" class="form-input" id="deployNasHost" placeholder="192.168.1.10" value="100.80.240.52">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label" for="deployNasShare">NAS Share</label>
-                                <input type="text" class="form-input" id="deployNasShare" placeholder="scans" value="Genealogy">
-                            </div>
-                            
-                            <div class="form-group">
-                                <label class="form-label" for="deployNasUsername">NAS Username</label>
-                                <input type="text" class="form-input" id="deployNasUsername" placeholder="admin">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label" for="deployNasPassword">NAS Password</label>
-                                <div style="position: relative;">
-                                    <input type="password" class="form-input" id="deployNasPassword" style="padding-right: 40px;">
-                                    <button type="button" class="btn btn-ghost btn-icon" onclick="togglePasswordVisibility('deployNasPassword', this)" style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); padding: 4px;" title="Pokaż/ukryj hasło">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="eye-icon">
-                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                            <circle cx="12" cy="12" r="3"/>
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <div class="form-group" style="grid-column: span 2;">
-                                <label class="checkbox-label">
-                                    <input type="checkbox" id="deployInstallPostgres">
-                                    <span>Zainstaluj lokalny PostgreSQL</span>
-                                </label>
-                            </div>
-                            
-                            <!-- Deploy Button -->
-                            <div class="form-group" style="grid-column: span 2; margin-top: 16px;">
-                                <button type="submit" class="btn btn-primary" style="width: 100%;">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-gap">
-                                        <circle cx="12" cy="12" r="10"></circle>
-                                        <polyline points="12 6 12 12 16 14"></polyline>
-                                    </svg>
-                                    Uruchom Deployment
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-                    
-                    <!-- Deployment Log -->
-                    <div id="deploymentLogContainer" style="display: none; margin-top: 24px;">
-                        <div class="settings-section-divider text-sm font-medium text-secondary">Logi deployment</div>
-                        <div id="deploymentLog" style="
-                            background: #0f172a;
-                            color: #e2e8f0;
-                            padding: 16px;
-                            border-radius: 8px;
-                            font-family: 'JetBrains Mono', monospace;
-                            font-size: 12px;
-                            max-height: 400px;
-                            overflow-y: auto;
-                            margin-top: 12px;
-                            white-space: pre-wrap;
-                        ">
-                            Oczekiwanie na deployment...
-                        </div>
-                        <div class="flex gap-sm" style="margin-top: 12px;">
-                            <button class="btn btn-secondary btn-sm" onclick="copyDeploymentLogs()">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                                </svg>
-                                Kopiuj logi
-                            </button>
-                            <button class="btn btn-secondary btn-sm" onclick="closeDeploymentLog()">Zamknij</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <!-- Remote Deployment (integrated into "+ Add Host" modal) -->
+            <!-- The deployment functionality has been merged into the host configuration modal.
+                 Use the "+ Add Host" button above and check "Auto-deploy" to provision new machines. -->
 
             <!-- Chrome Profile Sync -->
             <div class="card">
@@ -3475,6 +3314,12 @@
                         </div>
                     </div>
 
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="compact-form-label" for="hostNasSource">📁 Źródło NAS (SSHFS auto-mount)</label>
+                        <input type="text" class="compact-form-input" id="hostNasSource" placeholder="user@nas-host:/volume1/Sources">
+                        <small class="text-secondary" style="font-size: 0.75rem; margin-top: 2px; display: block;">Opcjonalnie: ścieżka NAS w formacie SSH. Zostanie automatycznie zamontowana w <code>~/ocr_mounts/sources</code> na tym hoście przed uruchomieniem workerów.</small>
+                    </div>
+
                     <!-- Browser Specific -->
                     <div id="hostBrowserSettings" style="grid-column: span 2; display: contents;">
                         <div class="settings-section-divider text-sm font-medium text-secondary" style="grid-column: span 2; margin-top: 10px;">Ustawienia Przeglądarki (Playwright)</div>
@@ -3527,11 +3372,119 @@
                         </div>
                     </div>
 
+                    <!-- Auto-Deploy Section -->
+                    <div class="settings-section-divider text-sm font-medium text-secondary" style="grid-column: span 2; margin-top: 16px;">Automatyczny Deployment</div>
+                    
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="compact-checkbox-label">
+                            <input type="checkbox" id="hostAutoDeploy" class="compact-checkbox" onchange="toggleHostDeploySection()">
+                            <span class="compact-checkbox-span">🚀 Auto-deploy (zainstaluj na nowej maszynie)</span>
+                        </label>
+                        <small class="text-secondary" style="font-size: 0.75rem; display: block; margin-top: 4px;">Zaznacz jeśli to nowy host i chcesz automatycznie zainstalować wszystkie zależności (Python, venv, Playwright, NAS mount itp.)</small>
+                    </div>
+
+                    <div id="hostDeploySection" style="grid-column: span 2; display: none;">
+                        <div class="settings-grid" style="gap: 8px;">
+                            <!-- OS Type -->
+                            <div class="form-group" style="grid-column: span 2;">
+                                <label class="compact-form-label">System operacyjny</label>
+                                <div class="flex gap-sm">
+                                    <label class="compact-checkbox-label">
+                                        <input type="radio" name="hostDeployOs" value="ubuntu" checked>
+                                        <span class="compact-checkbox-span">Ubuntu 20.04+</span>
+                                    </label>
+                                    <label class="compact-checkbox-label">
+                                        <input type="radio" name="hostDeployOs" value="arch">
+                                        <span class="compact-checkbox-span">Arch Linux</span>
+                                    </label>
+                                    <label class="compact-checkbox-label">
+                                        <input type="radio" name="hostDeployOs" value="windows">
+                                        <span class="compact-checkbox-span">Windows 11</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Sudo Password -->
+                            <div class="form-group">
+                                <label class="compact-form-label" for="hostDeploySudoPass">Hasło sudo</label>
+                                <div style="position: relative;">
+                                    <input type="password" class="compact-form-input" id="hostDeploySudoPass" placeholder="Hasło dla sudo" style="padding-right: 36px;">
+                                    <button type="button" class="btn btn-ghost btn-icon" onclick="togglePasswordVisibility('hostDeploySudoPass', this)" style="position: absolute; right: 2px; top: 50%; transform: translateY(-50%); padding: 2px;" title="Pokaż/ukryj hasło">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="eye-icon">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                            <circle cx="12" cy="12" r="3"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- GitHub Repo -->
+                            <div class="form-group">
+                                <label class="compact-form-label" for="hostDeployGithubRepo">GitHub Repo</label>
+                                <input type="text" class="compact-form-input" id="hostDeployGithubRepo" value="https://github.com/tomaasz/ocr-dashboard-v3" placeholder="https://github.com/user/repo">
+                            </div>
+
+                            <!-- NAS Config -->
+                            <div class="form-group">
+                                <label class="compact-form-label" for="hostDeployNasHost">NAS Host</label>
+                                <input type="text" class="compact-form-input" id="hostDeployNasHost" placeholder="192.168.1.10" value="100.80.240.52">
+                            </div>
+                            <div class="form-group">
+                                <label class="compact-form-label" for="hostDeployNasShare">NAS Share</label>
+                                <input type="text" class="compact-form-input" id="hostDeployNasShare" placeholder="scans" value="Genealogy">
+                            </div>
+                            <div class="form-group">
+                                <label class="compact-form-label" for="hostDeployNasUser">NAS Username</label>
+                                <input type="text" class="compact-form-input" id="hostDeployNasUser" placeholder="admin">
+                            </div>
+                            <div class="form-group">
+                                <label class="compact-form-label" for="hostDeployNasPass">NAS Password</label>
+                                <div style="position: relative;">
+                                    <input type="password" class="compact-form-input" id="hostDeployNasPass" style="padding-right: 36px;">
+                                    <button type="button" class="btn btn-ghost btn-icon" onclick="togglePasswordVisibility('hostDeployNasPass', this)" style="position: absolute; right: 2px; top: 50%; transform: translateY(-50%); padding: 2px;" title="Pokaż/ukryj hasło">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="eye-icon">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                            <circle cx="12" cy="12" r="3"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- PostgreSQL -->
+                            <div class="form-group" style="grid-column: span 2;">
+                                <label class="compact-checkbox-label">
+                                    <input type="checkbox" id="hostDeployPostgres" class="compact-checkbox">
+                                    <span class="compact-checkbox-span">Zainstaluj lokalny PostgreSQL</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Deployment Log (inline in modal) -->
+                    <div id="hostDeployLogContainer" style="grid-column: span 2; display: none; margin-top: 12px;">
+                        <div class="settings-section-divider text-sm font-medium text-secondary">Logi deployment</div>
+                        <div id="hostDeployLog" style="
+                            background: #0f172a;
+                            color: #e2e8f0;
+                            padding: 12px;
+                            border-radius: 8px;
+                            font-family: 'JetBrains Mono', monospace;
+                            font-size: 11px;
+                            max-height: 300px;
+                            overflow-y: auto;
+                            margin-top: 8px;
+                            white-space: pre-wrap;
+                        ">Oczekiwanie na deployment...</div>
+                        <div class="flex gap-sm" style="margin-top: 8px;">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="copyHostDeployLogs()">Kopiuj logi</button>
+                        </div>
+                    </div>
+
                 </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeHostConfigModal()">Anuluj</button>
-                <button class="btn btn-primary" onclick="saveHostConfig()" data-remote-host-edit="true">Zapisz</button>
+                <button class="btn btn-primary" id="hostSaveBtn" onclick="saveHostConfig()" data-remote-host-edit="true">Zapisz</button>
             </div>
         </div>
     </div>
@@ -9455,10 +9408,8 @@
 
       let remoteHostsData = [];
       let remoteRunEnabledGlobal = false;
-      let remoteSourceRootGlobal = "";
       let remoteRepoStatus = {};
       let remoteUpdateLogs = {};  // Store update logs per host
-      const DEFAULT_GLOBAL_SOURCE_ROOT = "tomaasz@kosciesza:~/Genealogy/Sources/";
 
       // Open Tailscale auth URLs in new browser tabs
       function openTailscaleAuthUrls(authUrls) {
@@ -9488,7 +9439,6 @@
             
             // Check normalized keys or string keys
             remoteRunEnabledGlobal = config.OCR_REMOTE_RUN_ENABLED === true || config.OCR_REMOTE_RUN_ENABLED === "true";
-            remoteSourceRootGlobal = (config.OCR_REMOTE_SOURCE_DIR || "").trim() || DEFAULT_GLOBAL_SOURCE_ROOT;
             
             let hostsList = config.OCR_REMOTE_HOSTS_LIST;
             if (typeof hostsList === 'string') {
@@ -9514,8 +9464,6 @@
             // Update UI
             const toggle = document.getElementById("settingRemoteRunEnabled");
             if (toggle) toggle.checked = remoteRunEnabledGlobal;
-            const sourceRootInput = document.getElementById("settingGlobalSourceRoot");
-            if (sourceRootInput) sourceRootInput.value = remoteSourceRootGlobal;
 
             renderRemoteHosts();
             updateProfileExecutionOptions(); // Populate dropdowns for profiles
@@ -9819,11 +9767,6 @@
       }
 
       async function saveRemoteHosts() {
-        const sourceRootValue =
-          document.getElementById("settingGlobalSourceRoot")?.value?.trim()
-          || DEFAULT_GLOBAL_SOURCE_ROOT;
-        remoteSourceRootGlobal = sourceRootValue;
-
         const normalizedHosts = remoteHostsData.map((host) => {
           const cleanHost = { ...host };
           delete cleanHost.source;
@@ -9832,7 +9775,6 @@
 
         const payload = {
             OCR_REMOTE_RUN_ENABLED: document.getElementById("settingRemoteRunEnabled").checked,
-            OCR_REMOTE_SOURCE_DIR: sourceRootValue,
             OCR_REMOTE_HOSTS_LIST: normalizedHosts
         };
 
@@ -9866,6 +9808,7 @@
         document.getElementById("hostSshOpts").value = "-p 22";
         document.getElementById("hostRepoDir").value = "";
         document.getElementById("hostPythonPath").value = "";
+        document.getElementById("hostNasSource").value = "";
         
         // Browser defaults
         document.getElementById("hostProfileRoot").value = "";
@@ -9874,6 +9817,20 @@
         document.getElementById("hostPortSpan").value = "100";
         document.getElementById("hostLocalPortBase").value = "18222";
         document.getElementById("hostTunnel").checked = true;
+
+        // Reset deploy section
+        document.getElementById("hostAutoDeploy").checked = false;
+        document.getElementById("hostDeploySection").style.display = "none";
+        document.getElementById("hostDeployLogContainer").style.display = "none";
+        document.getElementById("hostDeploySudoPass").value = "";
+        document.getElementById("hostDeployGithubRepo").value = "https://github.com/tomaasz/ocr-dashboard-v3";
+        document.getElementById("hostDeployNasHost").value = "100.80.240.52";
+        document.getElementById("hostDeployNasShare").value = "Genealogy";
+        document.getElementById("hostDeployNasUser").value = "";
+        document.getElementById("hostDeployNasPass").value = "";
+        document.getElementById("hostDeployPostgres").checked = false;
+        document.getElementById("hostSaveBtn").textContent = "Zapisz";
+        document.getElementById("hostSaveBtn").disabled = false;
 
         document.getElementById("hostConfigModal").classList.add("visible");
       }
@@ -9901,6 +9858,14 @@
           document.getElementById("hostPortSpan").value = host.portSpan || "100";
           document.getElementById("hostLocalPortBase").value = host.localPortBase || "18222";
           document.getElementById("hostTunnel").checked = host.tunnel === true;
+          document.getElementById("hostNasSource").value = host.nasSource || "";
+
+          // Hide deploy section for existing hosts
+          document.getElementById("hostAutoDeploy").checked = false;
+          document.getElementById("hostDeploySection").style.display = "none";
+          document.getElementById("hostDeployLogContainer").style.display = "none";
+          document.getElementById("hostSaveBtn").textContent = "Zapisz";
+          document.getElementById("hostSaveBtn").disabled = false;
 
           document.getElementById("hostConfigModal").classList.add("visible");
       }
@@ -9990,23 +9955,49 @@
       }
 
       async function saveHostConfig() {
+          const autoDeploy = document.getElementById("hostAutoDeploy").checked;
           const index = parseInt(document.getElementById("editHostIndex").value);
-          
+          const hostAddress = document.getElementById("hostAddress").value.trim();
           const user = document.getElementById("hostUser").value.trim();
-          
-          const host = {
+          const sshOpts = document.getElementById("hostSshOpts").value.trim();
+
+          if (!hostAddress || !user) {
+              showToast('error', 'Błąd', 'Uzupełnij wymagane pola (Host i Użytkownik)');
+              return;
+          }
+
+          if (autoDeploy) {
+              // Deploy + Save flow
+              await deployAndSaveHost(index, hostAddress, user, sshOpts);
+          } else {
+              // Simple save flow
+              const host = buildHostObject(index, hostAddress, user, sshOpts);
+              if (index === -1) {
+                  remoteHostsData.push(host);
+              } else {
+                  remoteHostsData[index] = host;
+              }
+              renderRemoteHosts();
+              closeHostConfigModal();
+              await saveRemoteHosts();
+          }
+      }
+
+      function buildHostObject(index, hostAddress, user, sshOpts) {
+          return {
               id: index === -1 ? Date.now().toString() : (remoteHostsData[index]?.id || Date.now().toString()),
               name: document.getElementById("hostName").value.trim(),
+              enabled: true,
               roles: {
                   worker: document.getElementById("hostRoleWorker").checked,
                   browser: document.getElementById("hostRoleBrowser").checked
               },
-              host: document.getElementById("hostAddress").value.trim(),
+              host: hostAddress,
               user: user,
-              ssh: document.getElementById("hostSshOpts").value.trim(),
+              ssh: sshOpts,
               repo: document.getElementById("hostRepoDir").value.trim(),
               python: document.getElementById("hostPythonPath").value.trim(),
-              
+              nasSource: document.getElementById("hostNasSource").value.trim(),
               // Browser Specific
               profileRoot: document.getElementById("hostProfileRoot").value.trim(),
               chrome: document.getElementById("hostChromeBin").value.trim(),
@@ -10015,18 +10006,156 @@
               localPortBase: parseInt(document.getElementById("hostLocalPortBase").value) || 18222,
               tunnel: document.getElementById("hostTunnel").checked
           };
+      }
 
-          if (index === -1) {
-              remoteHostsData.push(host);
-          } else {
-              remoteHostsData[index] = host;
+      async function deployAndSaveHost(index, hostAddress, user, sshOpts) {
+          const osType = document.querySelector('input[name="hostDeployOs"]:checked')?.value || 'ubuntu';
+          const hostName = document.getElementById("hostName").value.trim();
+
+          const config = {
+              sudo_password: document.getElementById('hostDeploySudoPass').value,
+              github_repo: document.getElementById('hostDeployGithubRepo').value.trim(),
+              nas_host: document.getElementById('hostDeployNasHost').value.trim(),
+              nas_share: document.getElementById('hostDeployNasShare').value.trim(),
+              nas_username: document.getElementById('hostDeployNasUser').value.trim(),
+              nas_password: document.getElementById('hostDeployNasPass').value,
+              install_postgres: document.getElementById('hostDeployPostgres').checked ? 'yes' : 'no'
+          };
+
+          // Disable save button during deployment
+          const saveBtn = document.getElementById('hostSaveBtn');
+          saveBtn.disabled = true;
+          saveBtn.textContent = '⏳ Deployment w toku...';
+
+          // Show log container in modal
+          const logContainer = document.getElementById('hostDeployLogContainer');
+          const logElement = document.getElementById('hostDeployLog');
+          logContainer.style.display = 'block';
+          logElement.innerHTML = `<span style="color: #4CAF50; font-weight: bold;">🚀 Rozpoczynam deployment na ${hostAddress}...</span>\n<span style="color: #888;">OS: ${osType} | User: ${user}</span>\n\n`;
+          logElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+          // Build query string for SSE endpoint
+          const params = new URLSearchParams({
+              os_type: osType,
+              host: hostAddress,
+              user: user,
+              ssh_opts: sshOpts,
+              github_repo: config.github_repo || '',
+              nas_host: config.nas_host || '',
+              nas_share: config.nas_share || '',
+              nas_username: config.nas_username || '',
+              nas_password: config.nas_password || '',
+              sudo_password: config.sudo_password || '',
+              install_postgres: config.install_postgres || 'no'
+          });
+
+          try {
+              const eventSource = new EventSource(`/api/settings/remote-deployment/deploy-stream?${params.toString()}`);
+              let hasCompleted = false;
+
+              eventSource.onmessage = function(event) {
+                  try {
+                      const data = JSON.parse(event.data);
+                      switch(data.type) {
+                          case 'status':
+                              logElement.innerHTML += `\n<span style="color: #2196F3; font-weight: bold;">${data.message}</span>\n`;
+                              break;
+                          case 'log':
+                              logElement.innerHTML += `${data.message}\n`;
+                              break;
+                          case 'warning':
+                              logElement.innerHTML += `<span style="color: #FF9800;">⚠️ ${data.message}</span>\n`;
+                              break;
+                          case 'error':
+                              logElement.innerHTML += `<span style="color: #f44336; font-weight: bold;">❌ ${data.message}</span>\n`;
+                              toastHost('error', 'Błąd', data.message, hostAddress);
+                              saveBtn.disabled = false;
+                              saveBtn.textContent = '🚀 Deployuj & Zapisz';
+                              eventSource.close();
+                              break;
+                          case 'complete':
+                              hasCompleted = true;
+                              if (data.success) {
+                                  logElement.innerHTML += `\n<span style="color: #4CAF50; font-weight: bold; font-size: 1.1em;">${data.message}</span>\n`;
+                                  toastHost('success', 'Sukces', 'Deployment zakończony pomyślnie!', hostAddress);
+
+                                  // Auto-fill paths for the deployed host
+                                  const installDir = `/home/${user}/ocr-dashboard-v3`;
+                                  if (!document.getElementById("hostRepoDir").value.trim()) {
+                                      document.getElementById("hostRepoDir").value = installDir;
+                                  }
+                                  if (!document.getElementById("hostPythonPath").value.trim()) {
+                                      document.getElementById("hostPythonPath").value = `${installDir}/venv/bin/python3`;
+                                  }
+                                  if (!document.getElementById("hostChromeBin").value.trim()) {
+                                      document.getElementById("hostChromeBin").value = osType === 'arch' ? '/usr/bin/chromium' : '/usr/bin/google-chrome';
+                                  }
+                                  if (!document.getElementById("hostProfileRoot").value.trim()) {
+                                      document.getElementById("hostProfileRoot").value = `${installDir}/chrome-profiles`;
+                                  }
+
+                                  // Now save the host
+                                  const host = buildHostObject(index, hostAddress, user, sshOpts);
+                                  // Update with auto-filled values
+                                  host.repo = document.getElementById("hostRepoDir").value.trim();
+                                  host.python = document.getElementById("hostPythonPath").value.trim();
+                                  host.chrome = document.getElementById("hostChromeBin").value.trim();
+                                  host.profileRoot = document.getElementById("hostProfileRoot").value.trim();
+                                  host.source = config.nas_host ? '/mnt/nas-scans' : '';
+
+                                  const existingIndex = remoteHostsData.findIndex(h => h.host === hostAddress);
+                                  if (existingIndex === -1) {
+                                      remoteHostsData.push(host);
+                                      logElement.innerHTML += `<span style="color: #2196F3;">\n📋 Dodano "${host.name || hostAddress}" do listy hostów</span>\n`;
+                                  } else {
+                                      remoteHostsData[existingIndex] = host;
+                                      logElement.innerHTML += `<span style="color: #888;">\nℹ️ Zaktualizowano konfigurację "${host.name || hostAddress}"</span>\n`;
+                                  }
+
+                                  saveRemoteHosts().then(() => {
+                                      renderRemoteHosts();
+                                      logElement.innerHTML += `<span style="color: #4CAF50;">✓ Konfiguracja hosta zapisana</span>\n`;
+                                      saveBtn.textContent = '✅ Gotowe';
+                                      setTimeout(() => {
+                                          saveBtn.disabled = false;
+                                          saveBtn.textContent = '🚀 Deployuj & Zapisz';
+                                      }, 3000);
+                                  }).catch(err => {
+                                      logElement.innerHTML += `<span style="color: #FF9800;">⚠️ Nie udało się zapisać: ${err.message}</span>\n`;
+                                      saveBtn.disabled = false;
+                                      saveBtn.textContent = '🚀 Deployuj & Zapisz';
+                                  });
+                              } else {
+                                  logElement.innerHTML += `\n<span style="color: #f44336; font-weight: bold;">${data.message}</span>\n`;
+                                  toastHost('error', 'Błąd', 'Deployment nie powiódł się', hostAddress);
+                                  saveBtn.disabled = false;
+                                  saveBtn.textContent = '🚀 Deployuj & Zapisz';
+                              }
+                              eventSource.close();
+                              break;
+                      }
+                      logElement.scrollTop = logElement.scrollHeight;
+                  } catch (e) {
+                      console.error('Error parsing SSE data:', e, event.data);
+                  }
+              };
+
+              eventSource.onerror = function(error) {
+                  console.error('SSE Error:', error);
+                  if (!hasCompleted) {
+                      logElement.innerHTML += `\n<span style="color: #f44336;">❌ Połączenie przerwane - sprawdź logi serwera</span>\n`;
+                      toastHost('warning', 'Uwaga', 'Połączenie przerwane', hostAddress);
+                  }
+                  saveBtn.disabled = false;
+                  saveBtn.textContent = '🚀 Deployuj & Zapisz';
+                  eventSource.close();
+              };
+          } catch (error) {
+              logElement.innerHTML += `\n<span style="color: #f44336;">❌ BŁĄD POŁĄCZENIA: ${error.message}</span>\n`;
+              toastHost('error', 'Błąd', `Błąd: ${error.message}`, hostAddress);
+              saveBtn.disabled = false;
+              saveBtn.textContent = '🚀 Deployuj & Zapisz';
           }
-
-          renderRemoteHosts();
-          closeHostConfigModal();
-          
-          // Save to server
-          await saveRemoteHosts();
       }
 
       // ============================================
@@ -11030,169 +11159,18 @@
         });
       }
 
-      // Remote Deployment Functions
-      async function deployRemoteHost(event) {
-          event.preventDefault();
-          
-          const osType = document.querySelector('input[name="deployOsType"]:checked').value;
-          const hostname = document.getElementById('deployHostname').value.trim();
-          const host = document.getElementById('deployHost').value.trim();
-          const user = document.getElementById('deployUser').value.trim();
-          const sshOpts = document.getElementById('deploySshOpts').value.trim();
-          
-          const config = {
-              sudo_password: document.getElementById('deploySudoPassword').value,
-              github_repo: document.getElementById('deployGithubRepo').value.trim(),
-              nas_host: document.getElementById('deployNasHost').value.trim(),
-              nas_share: document.getElementById('deployNasShare').value.trim(),
-              nas_username: document.getElementById('deployNasUsername').value.trim(),
-              nas_password: document.getElementById('deployNasPassword').value,
-              install_postgres: document.getElementById('deployInstallPostgres').checked ? 'yes' : 'no'
-          };
-          
-          if (!host || !user) {
-              showToast('error', 'Błąd', 'Uzupełnij wymagane pola (Host i Użytkownik)');
-              return;
-          }
-          
-          // Show log container
-          const logContainer = document.getElementById('deploymentLogContainer');
-          const logElement = document.getElementById('deploymentLog');
-          logContainer.style.display = 'block';
-          logElement.innerHTML = `<span style="color: #4CAF50; font-weight: bold;">🚀 Rozpoczynam deployment na ${host}...</span>\n<span style="color: #888;">OS: ${osType} | User: ${user}</span>\n\n`;
-          
-          // Scroll to logs
-          logElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          
-          // Build query string for SSE endpoint
-          const params = new URLSearchParams({
-              os_type: osType,
-              host: host,
-              user: user,
-              ssh_opts: sshOpts,
-              github_repo: config.github_repo || '',
-              nas_host: config.nas_host || '',
-              nas_share: config.nas_share || '',
-              nas_username: config.nas_username || '',
-              nas_password: config.nas_password || '',
-              sudo_password: config.sudo_password || '',
-              install_postgres: config.install_postgres || 'no'
-          });
-          
-          try {
-              // Use EventSource for SSE streaming
-              const eventSource = new EventSource(`/api/settings/remote-deployment/deploy-stream?${params.toString()}`);
-              
-              let hasCompleted = false;
-              
-              eventSource.onmessage = function(event) {
-                  try {
-                      const data = JSON.parse(event.data);
-                      
-                      switch(data.type) {
-                          case 'status':
-                              // Phase status update - highlight it
-                              logElement.innerHTML += `\n<span style="color: #2196F3; font-weight: bold;">${data.message}</span>\n`;
-                              break;
-                          case 'log':
-                              // Regular log line
-                              logElement.innerHTML += `${data.message}\n`;
-                              break;
-                          case 'warning':
-                              logElement.innerHTML += `<span style="color: #FF9800;">⚠️ ${data.message}</span>\n`;
-                              break;
-                          case 'error':
-                              logElement.innerHTML += `<span style="color: #f44336; font-weight: bold;">❌ ${data.message}</span>\n`;
-                              toastHost('error', 'Błąd', data.message, host);
-                              eventSource.close();
-                              break;
-                          case 'complete':
-                              hasCompleted = true;
-                              if (data.success) {
-                                  logElement.innerHTML += `\n<span style="color: #4CAF50; font-weight: bold; font-size: 1.1em;">${data.message}</span>\n`;
-                                  toastHost('success', 'Sukces', 'Deployment zakończony pomyślnie!', host);
-                                  
-                                  // Automatically add deployed host to remote hosts list
-                                  const installDir = `/home/${user}/ocr-dashboard-v3`;
-                                  const newHost = {
-                                      id: Date.now().toString(),
-                                      name: hostname || `${osType.charAt(0).toUpperCase() + osType.slice(1)} ${host}`,
-                                      enabled: true,
-                                      // Roles
-                                      roles: {
-                                          worker: true,
-                                          browser: false
-                                      },
-                                      // SSH Connection
-                                      host: host,
-                                      user: user,
-                                      ssh: sshOpts || '',
-                                      // Paths & Worker settings
-                                      repo: installDir,
-                                      source: config.nas_host ? `/mnt/nas-scans` : '',
-                                      python: `${installDir}/venv/bin/python3`,
-                                      // Browser settings
-                                      profileRoot: `${installDir}/chrome-profiles`,
-                                      chrome: osType === 'arch' ? '/usr/bin/chromium' : '/usr/bin/google-chrome',
-                                      portBase: 9222,
-                                      portSpan: 100,
-                                      localPortBase: 18222,
-                                      tunnel: true,
-                                      // Legacy fields (for compatibility)
-                                      ocr_project_path: installDir,
-                                      ocr_data_path: `${installDir}/data`,
-                                      ssh_options: sshOpts || ''
-                                  };
-                                  
-                                  // Check if host doesn't already exist
-                                  const existingIndex = remoteHostsData.findIndex(h => h.host === host);
-                                  if (existingIndex === -1) {
-                                      remoteHostsData.push(newHost);
-                                      logElement.innerHTML += `<span style="color: #2196F3;">\n📋 Dodano "${newHost.name}" do listy hostów zdalnych</span>\n`;
-                                      
-                                      // Auto-save hosts
-                                      saveRemoteHosts().then(() => {
-                                          renderRemoteHosts();
-                                          logElement.innerHTML += `<span style="color: #4CAF50;">✓ Konfiguracja hosta zapisana</span>\n`;
-                                      }).catch(err => {
-                                          logElement.innerHTML += `<span style="color: #FF9800;">⚠️ Nie udało się zapisać: ${err.message}</span>\n`;
-                                      });
-                                  } else {
-                                      logElement.innerHTML += `<span style="color: #888;">\nℹ️ Host "${host}" już istnieje na liście</span>\n`;
-                                  }
-                              } else {
-                                  logElement.innerHTML += `\n<span style="color: #f44336; font-weight: bold;">${data.message}</span>\n`;
-                                  toastHost('error', 'Błąd', 'Deployment nie powiódł się', host);
-                              }
-                              eventSource.close();
-                              break;
-                      }
-                      
-                      // Auto-scroll to bottom
-                      logElement.scrollTop = logElement.scrollHeight;
-                      
-                  } catch (e) {
-                      console.error('Error parsing SSE data:', e, event.data);
-                  }
-              };
-              
-              eventSource.onerror = function(error) {
-                  console.error('SSE Error:', error);
-                  if (!hasCompleted) {
-                      logElement.innerHTML += `\n<span style="color: #f44336;">❌ Połączenie przerwane - sprawdź logi serwera</span>\n`;
-                      toastHost('warning', 'Uwaga', 'Połączenie przerwane', host);
-                  }
-                  eventSource.close();
-              };
-              
-          } catch (error) {
-              logElement.innerHTML += `\n<span style="color: #f44336;">❌ BŁĄD POŁĄCZENIA: ${error.message}</span>\n`;
-              toastHost('error', 'Błąd', `Błąd: ${error.message}`, host);
-          }
+      // ============================================
+      // Host Deploy Section helpers (integrated in modal)
+      // ============================================
+      function toggleHostDeploySection() {
+          const checked = document.getElementById('hostAutoDeploy').checked;
+          document.getElementById('hostDeploySection').style.display = checked ? 'block' : 'none';
+          document.getElementById('hostSaveBtn').textContent = checked ? '🚀 Deployuj & Zapisz' : 'Zapisz';
       }
 
-      function copyDeploymentLogs() {
-          const log = document.getElementById('deploymentLog');
+      function copyHostDeployLogs() {
+          const log = document.getElementById('hostDeployLog');
+          if (!log) return;
           navigator.clipboard.writeText(log.textContent).then(() => {
               showToast('success', 'Sukces', 'Logi skopiowane do schowka');
           }).catch(err => {
@@ -11201,39 +11179,7 @@
           });
       }
 
-      function toggleDeploymentForm() {
-          const body = document.getElementById('deploymentFormBody');
-          const chevron = document.getElementById('deploymentChevron');
-          const badge = chevron.parentElement.parentElement.querySelector('.badge');
-          
-          if (body.style.display === 'none') {
-              body.style.display = 'block';
-              chevron.style.transform = 'rotate(90deg)';
-              if (badge) badge.style.display = 'none';
-              localStorage.setItem('deploymentFormExpanded', 'true');
-          } else {
-              body.style.display = 'none';
-              chevron.style.transform = 'rotate(0deg)';
-              if (badge) badge.style.display = 'inline';
-              localStorage.setItem('deploymentFormExpanded', 'false');
-          }
-      }
-      
-      // Restore deployment form state on load
-      document.addEventListener('DOMContentLoaded', () => {
-          if (localStorage.getItem('deploymentFormExpanded') === 'true') {
-              const body = document.getElementById('deploymentFormBody');
-              const chevron = document.getElementById('deploymentChevron');
-              const badge = chevron?.parentElement?.parentElement?.querySelector('.badge');
-              if (body) body.style.display = 'block';
-              if (chevron) chevron.style.transform = 'rotate(90deg)';
-              if (badge) badge.style.display = 'none';
-          }
-      });
-
-      function closeDeploymentLog() {
-          document.getElementById('deploymentLogContainer').style.display = 'none';
-      }
+      // toastHost is defined earlier in the file (uses resolveHostLabel)
 
       // Password visibility toggle
       function togglePasswordVisibility(inputId, button) {
