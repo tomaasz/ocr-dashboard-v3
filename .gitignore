@@ -1,0 +1,46 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+.venv/
+ENV/
+
+# Environment variables
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+logs/
+*.log
+
+# Data
+data/
+*.json
+!favorites.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Cache
+.cache/
+*.pyc
+
+# Antigravity workspace
+artifacts/
+.antigravity/memory.json
+.context/.cache/
+
+# Snyk Security Extension - AI Rules (auto-generated)
+.agent/rules/snyk_rules.md
+
+# Worktrees
+.worktrees/

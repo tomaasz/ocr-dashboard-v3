@@ -1,0 +1,6 @@
+[Unit]
+Description=OCR Dashboard auto-push retry (every 30 min)
+
+[Service]
+Type=oneshot
+ExecStart=/home/tomaasz/ocr-dashboard-v3/scripts/push_retry.sh

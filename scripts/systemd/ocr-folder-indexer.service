@@ -1,0 +1,41 @@
+[Unit]
+Description=OCR Dashboard Folder Indexer Service
+Documentation=https://github.com/tomaasz/ocr-dashboard-v3
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=tomaasz
+Group=tomaasz
+WorkingDirectory=/home/tomaasz/ocr-dashboard-v3
+
+# Environment variables - load from .env file or set directly
+EnvironmentFile=-/home/tomaasz/ocr-dashboard-v3/.env
+Environment="OCR_PG_DSN=postgresql://tomaasz:123Karinka!%%40%%23@127.0.0.1:5432/ocr"
+Environment="OCR_PG_TABLE=public.ocr_raw_texts"
+
+# Run indexer in daemon mode, every 5 minutes
+ExecStart=/home/tomaasz/ocr-dashboard-v3/venv/bin/python /home/tomaasz/ocr-dashboard-v3/scripts/folder_indexer.py --daemon --interval 300 --max-age 30 --workers 4
+
+# Restart policy
+Restart=always
+RestartSec=30
+
+# Resource limits
+Nice=10
+IOSchedulingClass=idle
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/home/tomaasz/ocr-dashboard-v3
+ReadOnlyPaths=/mnt/nas_genealogy
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ocr-folder-indexer
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,10 @@
+[Unit]
+Description=OCR Dashboard Limit Precheck Timer
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=15min
+Unit=ocr-dashboard-limit-precheck.service
+
+[Install]
+WantedBy=timers.target

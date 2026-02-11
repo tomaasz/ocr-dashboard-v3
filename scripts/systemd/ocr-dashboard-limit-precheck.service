@@ -1,0 +1,12 @@
+[Unit]
+Description=OCR Dashboard Limit Precheck
+After=network.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/tomaasz/ocr-dashboard-v3
+EnvironmentFile=-/etc/default/ocr-dashboard
+Environment="OCR_PG_DSN=postgresql://tomaasz:123Karinka!%%40%%23@127.0.0.1:5432/ocr"
+ExecStart=/home/tomaasz/ocr-dashboard-v3/venv/bin/python /home/tomaasz/ocr-dashboard-v3/scripts/precheck_limits.py --quick
+StandardOutput=append:/home/tomaasz/ocr-dashboard-v3/logs/precheck_limits.service.log
+StandardError=append:/home/tomaasz/ocr-dashboard-v3/logs/precheck_limits.service.log

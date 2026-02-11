@@ -1,0 +1,17 @@
+[Unit]
+Description=OCR Dashboard Farm Health Monitor
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/tomaasz/ocr-dashboard-v3
+EnvironmentFile=-/etc/default/ocr-dashboard
+Environment="OCR_PG_DSN=postgresql://tomaasz:123Karinka!%%40%%23@127.0.0.1:5432/ocr"
+ExecStart=/home/tomaasz/ocr-dashboard-v3/venv/bin/python /home/tomaasz/ocr-dashboard-v3/scripts/monitor_farm_health.py --interval 120
+StandardOutput=append:/home/tomaasz/ocr-dashboard-v3/logs/monitor_farm_health.service.log
+StandardError=append:/home/tomaasz/ocr-dashboard-v3/logs/monitor_farm_health.service.log
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

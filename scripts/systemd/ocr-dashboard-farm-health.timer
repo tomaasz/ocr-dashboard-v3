@@ -1,0 +1,10 @@
+[Unit]
+Description=OCR Dashboard Farm Health Monitor Timer
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=2min
+Unit=ocr-dashboard-farm-health.service
+
+[Install]
+WantedBy=timers.target
