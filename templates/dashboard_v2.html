@@ -9501,10 +9501,7 @@
             }
             if (!Array.isArray(hostsList)) hostsList = [];
             
-            // Initialize default hosts if empty
-            if (hostsList.length === 0) {
-                hostsList = initializeDefaultHosts();
-            }
+            // Note: empty list is valid (all hosts were deleted)
             
             remoteHostsData = hostsList.map((host) => {
               const normalized = { ...host };
