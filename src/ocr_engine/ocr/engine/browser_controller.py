@@ -69,7 +69,12 @@ class GeminiBrowserController:
         self.locale = locale
         self.enable_video = enable_video
         self.video_dir = video_dir
-        self.proxy_config = proxy_config
+        # Strip username/password from proxy - Webshare uses IP authorization
+        # Chromium hangs when sending credentials with CONNECT method
+        if proxy_config and "server" in proxy_config:
+            self.proxy_config = {"server": proxy_config["server"]}
+        else:
+            self.proxy_config = proxy_config
         self.enable_tracing = enable_tracing
         self.tracing_active = False
         self.debug_artifacts_enabled = (
