@@ -12,7 +12,6 @@ sys.path.append(str(project_root / "src"))
 
 from ocr_engine.ocr.engine.auto_login import AutoLogin
 from ocr_engine.ocr.engine.browser_controller import GeminiBrowserController
-from ocr_engine.ocr.engine.proxy_config import load_proxy_config
 from ocr_engine.utils.path_security import sanitize_profile_name, validate_profiles_dir
 
 # Setup basic logging
@@ -140,6 +139,28 @@ def main():
                     f"Navigation error (might be okay if manual interaction needed): {e}"
                 )
 
+            # Handle Google consent page ("Zanim przejdziesz do Google")
+            if "consent.google.com" in page.url:
+                logger.info("Google consent page detected. Accepting cookies...")
+                try:
+                    # Try Polish and English variants
+                    consent_selectors = [
+                        "button:has-text('Zaakceptuj wszystko')",
+                        "button:has-text('Accept all')",
+                        "button:has-text('Akceptuję')",
+                        "button:has-text('I agree')",
+                    ]
+                    for selector in consent_selectors:
+                        btn = page.locator(selector).first
+                        if btn.count() > 0 and btn.is_visible(timeout=2000):
+                            logger.info(f"Clicking consent button: {selector}")
+                            btn.click()
+                            page.wait_for_timeout(3000)
+                            logger.info(f"Consent accepted. Current URL: {page.url}")
+                            break
+                except Exception as e:
+                    logger.warning(f"Consent handling error: {e}")
+
             # If we have credentials, try auto-login
             if auto_login.can_auto_login():
                 logger.info("Credentials found. Attempting auto-login...")
@@ -151,8 +172,7 @@ def main():
                         time.sleep(5)
                         logger.info("Session saved. Closing browser.")
                         return
-                    else:
-                        logger.warning("❌ Auto-login failed.")
+                    logger.warning("❌ Auto-login failed.")
                 except Exception as e:
                     logger.error(f"Auto-login error: {e}")
             else:
