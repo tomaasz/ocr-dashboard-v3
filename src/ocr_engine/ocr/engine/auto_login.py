@@ -199,14 +199,122 @@ class AutoLogin:
             logger.info("[AutoLogin] Waiting for page transition...")
             page.wait_for_timeout(5000)
 
-            # Step 3: Enter password - wait for element to appear
+            # Step 3: Enter password
+            # Google may show a security key (FIDO) challenge instead of password.
+            # If so, click "Try another way" and select password option.
             password_input = page.locator("input[type='password']").first
             logger.info("[AutoLogin] Waiting for password input to appear...")
+
             try:
-                password_input.wait_for(state="visible", timeout=20000)
-            except Exception as e:
-                logger.error(f"[AutoLogin] Password input not found after 20s: {e}")
-                return False
+                password_input.wait_for(state="visible", timeout=5000)
+            except Exception:
+                # Password not visible — maybe security key challenge is shown
+                logger.info(
+                    "[AutoLogin] Password input not found, checking for security key challenge..."
+                )
+
+                # Detect security key / FIDO challenge
+                security_key_indicators = [
+                    "text='Use your security key'",
+                    "text='Użyj klucza bezpieczeństwa'",
+                    "text='używając klucza'",
+                    "text='Insert your security key'",
+                    "text='Weryfikuję Twoją tożsamość'",
+                ]
+                is_security_key = False
+                for indicator in security_key_indicators:
+                    try:
+                        if page.locator(indicator).first.count() > 0:
+                            is_security_key = True
+                            break
+                    except Exception:
+                        continue
+
+                if is_security_key:
+                    logger.info(
+                        "[AutoLogin] Security key challenge detected. Clicking 'Try another way'..."
+                    )
+                    try_another_selectors = [
+                        "a:has-text('Wypróbuj inny sposób')",
+                        "a:has-text('Try another way')",
+                        "button:has-text('Wypróbuj inny sposób')",
+                        "button:has-text('Try another way')",
+                    ]
+                    clicked_another = False
+                    for selector in try_another_selectors:
+                        try:
+                            btn = page.locator(selector).first
+                            if btn.count() > 0 and btn.is_visible(timeout=2000):
+                                btn.click()
+                                clicked_another = True
+                                logger.info("[AutoLogin] Clicked 'Try another way'")
+                                page.wait_for_timeout(3000)
+                                break
+                        except Exception:
+                            continue
+
+                    if not clicked_another:
+                        # Also try Cancel button on WebAuthn dialog first
+                        try:
+                            cancel_btn = page.locator(
+                                "button:has-text('Cancel'), button:has-text('Anuluj')"
+                            ).first
+                            if cancel_btn.count() > 0 and cancel_btn.is_visible(timeout=2000):
+                                cancel_btn.click()
+                                page.wait_for_timeout(2000)
+                                # Retry "Try another way"
+                                for selector in try_another_selectors:
+                                    try:
+                                        btn = page.locator(selector).first
+                                        if btn.count() > 0 and btn.is_visible(timeout=2000):
+                                            btn.click()
+                                            clicked_another = True
+                                            page.wait_for_timeout(3000)
+                                            break
+                                    except Exception:
+                                        continue
+                        except Exception:
+                            pass
+
+                    if clicked_another:
+                        # Now select "Enter your password" option
+                        password_option_selectors = [
+                            "li:has-text('Wpisz hasło')",
+                            "li:has-text('Enter your password')",
+                            "div[data-challengetype='12']",  # Google's internal ID for password
+                            "[data-challengeindex] :has-text('Wpisz hasło')",
+                            "[data-challengeindex] :has-text('Enter your password')",
+                            "div[role='link']:has-text('hasło')",
+                            "div[role='link']:has-text('password')",
+                        ]
+                        for selector in password_option_selectors:
+                            try:
+                                opt = page.locator(selector).first
+                                if opt.count() > 0 and opt.is_visible(timeout=2000):
+                                    opt.click()
+                                    logger.info(f"[AutoLogin] Selected password option: {selector}")
+                                    page.wait_for_timeout(3000)
+                                    break
+                            except Exception:
+                                continue
+
+                        # Now wait for password input again
+                        try:
+                            password_input = page.locator("input[type='password']").first
+                            password_input.wait_for(state="visible", timeout=10000)
+                        except Exception as e:
+                            logger.error(
+                                f"[AutoLogin] Password input still not found after selecting 'Try another way': {e}"
+                            )
+                            return False
+                    else:
+                        logger.error("[AutoLogin] Could not find 'Try another way' link")
+                        return False
+                else:
+                    logger.error(
+                        "[AutoLogin] Password input not found and no security key challenge detected"
+                    )
+                    return False
 
             logger.info("[AutoLogin] Entering password")
             password_input.fill(password)
