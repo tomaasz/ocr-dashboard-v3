@@ -161,6 +161,15 @@ def main():
                 except Exception as e:
                     logger.warning(f"Consent handling error: {e}")
 
+            # Check if already logged in (session from previous login)
+            current_url = page.url
+            if "gemini.google.com" in current_url and "accounts.google.com" not in current_url:
+                logger.info("✅ Already logged in! Session is valid.")
+                logger.info("Saving session (waiting 3s)...")
+                time.sleep(3)
+                logger.info("Session confirmed. Closing browser.")
+                return
+
             # If we have credentials, try auto-login
             if auto_login.can_auto_login():
                 logger.info("Credentials found. Attempting auto-login...")
