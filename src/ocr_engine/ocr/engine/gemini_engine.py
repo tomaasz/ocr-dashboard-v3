@@ -880,6 +880,15 @@ class GeminiEngine:
     def _auth_ensure(self, context: str = "", force: bool = False) -> None:
         if not self.auth_ensure_enabled:
             return
+
+        # CRITICAL: Skip auth_ensure during startup to avoid interfering with freshly initialized workers
+        # Workers are already validated by wait_for_ui_ready in _init_pages
+        if context == "startup":
+            logger.info(
+                "[AuthEnsure] Skipping session check during startup (workers already validated)"
+            )
+            return
+
         now = time.time()
         if not force and (now - self.last_auth_ensure_ts) < self.auth_ensure_interval_sec:
             return
