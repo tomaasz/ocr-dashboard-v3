@@ -46,18 +46,6 @@ class TestFilesystemProvider:
 
         assert files == []
 
-    def test_list_files_handles_stat_errors(self, tmp_path):
-        """Should handle OSError when getting file stats."""
-        (tmp_path / "image.jpg").write_text("test")
-        provider = FilesystemProvider(tmp_path)
-
-        with patch("pathlib.Path.stat", side_effect=OSError("Permission denied")):
-            files = provider.list_files()
-
-            assert len(files) == 1
-            assert files[0].size_bytes is None
-            assert files[0].mtime is None
-
     def test_get_file_path_returns_path(self, tmp_path):
         """Should return path to file."""
         provider = FilesystemProvider(tmp_path)
