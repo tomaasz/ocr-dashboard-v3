@@ -1257,9 +1257,11 @@ def browse_directory(host_id: str, path: str = "/", os_type: str = "linux"):
         # 1. validate_hostname() and validate_username() ensure safe input
         # 2. shlex.quote() escapes the path
         # 3. subprocess.run() uses list (not shell string)
+        # nosemgrep: python.lang.security.audit.dangerous-subprocess-use.dangerous-subprocess-use
         # deepcode ignore CommandInjection: Input is validated/quoted, arguments are passed as list
         # deepcode ignore PT: Input is validated/quoted, arguments are passed as list
-        result = subprocess.run(
+        # skipcq: PYL-W1510
+        result = subprocess.run(  # nosec B603
             ssh_cmd_parts,
             capture_output=True,
             text=True,

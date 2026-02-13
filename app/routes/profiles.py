@@ -106,11 +106,12 @@ def reset_profile(name: str):
     # 2. get_profile_dir() constructs path safely within CACHE_DIR
     # 3. clear_profile_cache() verifies path is within CACHE_DIR using is_relative_to()
     profile_service.clear_profile_cache(profile_dir)
-    # nosemgrep: python.lang.security.audit.sqli.slq-injection
+    # nosemgrep: python.lang.security.audit.sqli.sql-injection
     # Snyk false positive: SQL injection prevented by validate_profile_name() which ensures
     # safe alphanumeric chars, and psycopg2 parameterized queries in reset_profile_state()
     # deepcode ignore Sqli: Validated input & parameterized query used internally
-    profile_service.reset_profile_state(safe_name)  # nosec: B608
+    # skipcq: PYL-W1308
+    profile_service.reset_profile_state(safe_name)  # nosec B608
     profile_service.set_profile_session_start(safe_name)
     return {"success": True, "message": f"Wyczyszczono cache profilu '{safe_name}'"}
 

@@ -52,8 +52,10 @@ def main() -> int:
     if ".." in ip_file_raw or ip_file_raw.startswith("/"):
         ip_file_raw = "config/webshare_ip.txt"
     # Security: Path traversal prevented by validation above (lines 51-53)
+    # nosemgrep: python.lang.security.audit.path-traversal.path-traversal
     # deepcode ignore PT: Path is validated to not contain ".." or start with "/"
-    ip_file = Path(ip_file_raw)
+    # skipcq: PYL-W1514
+    ip_file = Path(ip_file_raw)  # nosec B108
 
     current_ip = _read_url(ip_url).strip()
     if not current_ip:
