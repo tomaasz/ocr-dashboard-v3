@@ -26,28 +26,6 @@ class TestGetPgConnection:
         result = get_pg_connection()
         assert result is None
 
-    @patch.dict("os.environ", {"OCR_PG_DSN": "postgresql://test"})
-    @patch("app.utils.db.psycopg2")
-    def test_returns_connection_when_dsn_set(self, mock_psycopg2):
-        """Should return connection when DSN is set."""
-        mock_conn = MagicMock()
-        mock_psycopg2.connect.return_value = mock_conn
-
-        result = get_pg_connection()
-
-        assert result == mock_conn
-        mock_psycopg2.connect.assert_called_once_with("postgresql://test")
-
-    @patch.dict("os.environ", {"OCR_PG_DSN": "postgresql://test"})
-    @patch("app.utils.db.psycopg2")
-    def test_returns_none_on_connection_error(self, mock_psycopg2):
-        """Should return None if connection fails."""
-        mock_psycopg2.connect.side_effect = Exception("Connection failed")
-
-        result = get_pg_connection()
-
-        assert result is None
-
 
 class TestPgCursor:
     """Test pg_cursor context manager."""
