@@ -1,22 +1,31 @@
-# Tech Stack
+# Technology Stack
 
 ## Backend
-- **Language**: Python 3.x
-- **Framework**: FastAPI (inferred from `app/main.py` and `routes/`)
-- **Server**: Uvicorn (implied for FastAPI) or similar WSGI/ASGI server.
-- **Database**: PostgreSQL (referenced by `OCR_PG_DSN`)
+- **Language**: Python 3.10+
+- **Framework**: FastAPI (Asynchronous web framework)
+- **Web Server**: Uvicorn (ASGI server)
+- **Validation**: Pydantic v2 (Data validation and settings management)
+- **Templates**: Jinja2 (Server-side rendering)
 
-## Frontend
-- **Templating**: Jinja2 (likely, given `templates/` directory)
-- **Styling**: Custom CSS (`static/dashboard_v2.css`)
-- **JavaScript**: Likely vanilla JS or lightweight libraries for the dashboard interactions.
+## Database
+- **Engine**: PostgreSQL
+- **Driver**: psycopg2-binary
+- **Schema Management**: SQL migrations (lokalizowane w `scripts/migrations/`)
 
-## Infrastructure & DevOps
-- **Service Management**: systemd (Linux), Task Scheduler (Windows)
-- **Containerization/Virtualization**: Virtualenv (`venv`)
-- **CI/CD**: GitHub Actions (referenced `scripts` for auto-sync, push retry)
-- **Code Quality**: SonarQube (optional local instance)
+## OCR & Processing
+- **Automation**: Playwright (Browser automation for OCR tasks)
+- **AI Models**: Google Generative AI (Gemini) for advanced OCR/Analysis
+- **Image Processing**: OpenCV (headless) and Pillow (PIL)
+- **Source Access**: Tailscale / NAS (Remote filesystem integration)
 
-## Automation
-- **Browser Automation**: Playwright (referenced in `src/ocr_engine/ocr/engine/playwright_engine.py`) or Selenium (referenced `browser_controller.py` might imply this, but Playwright is explicitly named).
-- **OCR Engine**: Custom OCR engine implementation in `src/ocr_engine`.
+## Infrastructure & Automation
+- **OS Support**: Linux/WSL and Windows
+- **Process Management**: Systemd (Services and Timers for automation)
+- **Task Scheduling**: Bash scripts (Auto-sync, push-retry, reminders)
+- **IP/Proxy Management**: Webshare IP/Proxy sync scripts
+
+## Development & Quality
+- **Linting & Formatting**: Ruff (Extremely fast Python linter and formatter)
+- **Testing**: Pytest (with pytest-asyncio for async tests)
+- **Code Quality**: SonarQube (Local instance on `http://localhost:9000`)
+- **Environment**: Virtualenv (venv), .env files for configuration

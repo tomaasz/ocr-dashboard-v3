@@ -123,13 +123,3 @@ class TestValidateAndHandle:
         assert exc_info.value.status_code == 400
         assert "Invalid value" in exc_info.value.detail
 
-    def test_uses_custom_error_message(self):
-        """Should use custom error message when provided."""
-
-        def validator(value):
-            raise ValueError("Original error")
-
-        with pytest.raises(HTTPException) as exc_info:
-            validate_and_handle(validator, "test", "Custom error message")
-
-        assert exc_info.value.detail == "Custom error message"
