@@ -1,7 +1,8 @@
-# Tracks Registry
+# Project Tracks
 
-| Track ID | Name | Status | Owner | Description |
-| :--- | :--- | :--- | :--- | :--- |
-| | | | | |
+This file tracks all major tracks for the project. Each track has its own detailed plan in its respective folder.
 
-*See `conductor/tracks/<track_id>/plan.md` for detailed plans.*
+---
+
+- [ ] **Track: Usprawnienie monitorowania zdrowia farmy (Farm Health Monitoring) oraz optymalizacja obsługi błędów w silniku OCR.**
+  *Link: [./tracks/farm_health_opt_20260213/](./tracks/farm_health_opt_20260213/)*
