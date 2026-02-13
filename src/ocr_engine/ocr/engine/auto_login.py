@@ -64,7 +64,7 @@ class AutoLogin:
             # Strip gemini-profile- prefix if present (profile_dir.name vs credential key)
             lookup_name = self.profile_name
             if lookup_name.startswith("gemini-profile-"):
-                lookup_name = lookup_name[len("gemini-profile-"):]
+                lookup_name = lookup_name[len("gemini-profile-") :]
 
             creds = profiles.get(lookup_name) or profiles.get(self.profile_name)
 
@@ -72,12 +72,18 @@ class AutoLogin:
                 logger.warning(f"[AutoLogin] No credentials for profile: {lookup_name}")
                 return None
 
-            # Validate required fields
-            required = ["email", "password", "totp_secret"]
+            # Validate required fields (email + password required, totp_secret optional)
+            required = ["email", "password"]
             missing = [f for f in required if not creds.get(f)]
             if missing:
                 logger.warning(f"[AutoLogin] Missing fields for {self.profile_name}: {missing}")
                 return None
+
+            if not creds.get("totp_secret"):
+                logger.warning(
+                    f"[AutoLogin] No totp_secret for {self.profile_name} - "
+                    "will attempt login without 2FA"
+                )
 
             logger.info(f"[AutoLogin] Credentials loaded for: {self.profile_name}")
             return creds
@@ -148,7 +154,7 @@ class AutoLogin:
                             break
                     except Exception:
                         continue
-            
+
             if sign_in_btn:
                 logger.info("[AutoLogin] Clicking sign-in button")
                 sign_in_btn.click()
@@ -184,11 +190,11 @@ class AutoLogin:
                 except Exception as e:
                     logger.debug(f"[AutoLogin] Selector {selector} failed: {e}")
                     continue
-            
+
             if not next_clicked:
                 logger.info("[AutoLogin] Next button not found, pressing Enter")
                 page.keyboard.press("Enter")
-            
+
             # Wait for password page to load (Google can be slow, especially with proxy)
             logger.info("[AutoLogin] Waiting for page transition...")
             page.wait_for_timeout(5000)
@@ -238,7 +244,10 @@ class AutoLogin:
 
                 totp_code = self.generate_totp_code()
                 if not totp_code:
-                    logger.error("[AutoLogin] Failed to generate TOTP code")
+                    logger.error(
+                        "[AutoLogin] 2FA required but no totp_secret configured! "
+                        "Add totp_secret to config/credentials.json for this profile."
+                    )
                     return False
 
                 logger.info("[AutoLogin] Entering 2FA code")
@@ -307,7 +316,9 @@ class AutoLogin:
 
         # Navigate to Gemini to trigger login
         try:
-            page.goto("https://gemini.google.com/app?hl=pl", wait_until="domcontentloaded", timeout=15000)
+            page.goto(
+                "https://gemini.google.com/app?hl=pl", wait_until="domcontentloaded", timeout=15000
+            )
             page.wait_for_timeout(2000)
         except Exception as e:
             logger.warning(f"[AutoLogin] Navigation failed: {e}")
