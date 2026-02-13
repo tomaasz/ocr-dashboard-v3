@@ -12,6 +12,8 @@ from ..models import ProfileDefaultVisibilityRequest, ProfileStartRequest
 from ..services import process as process_service
 from ..services import profiles as profile_service
 from ..utils import validate_profile_name
+from ..utils.error_handlers import handle_bad_request, handle_not_found, handle_validation_error
+from ..utils.log_utils import get_log_with_errors, read_log_file_tail
 
 router = APIRouter(prefix="/api/profiles", tags=["profiles"])
 
@@ -29,7 +31,7 @@ def get_active_profile_dir(profile: str):
     try:
         safe_name = validate_profile_name(profile)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail="Nieprawidłowa nazwa profilu") from e
+        handle_validation_error(e, "Nieprawidłowa nazwa profilu")
 
     active_dir = profile_service.get_active_chrome_profile(safe_name)
     return {"profile": safe_name, "active_dir": active_dir}
@@ -41,11 +43,11 @@ def create_profile(name: str):
     try:
         safe_name = validate_profile_name(name)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        handle_validation_error(e)
 
     success, message = profile_service.create_profile(safe_name)
     if not success:
-        raise HTTPException(status_code=400, detail=message)
+        handle_bad_request(message)
 
     return {"success": True, "message": message}
 
@@ -56,7 +58,7 @@ def delete_profile(name: str):
     try:
         safe_name = validate_profile_name(name)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        handle_validation_error(e)
 
     # Explicitly sanitize to satisfy static analysis tools
     safe_name = os.path.basename(safe_name)  # noqa: PTH119
@@ -67,7 +69,7 @@ def delete_profile(name: str):
     # 2. delete_profile() verifies path is within CACHE_DIR using is_relative_to()
     success, message = profile_service.delete_profile(safe_name)
     if not success:
-        raise HTTPException(status_code=400, detail=message)
+        handle_bad_request(message)
 
     return {"success": True, "message": message}
 
@@ -77,7 +79,7 @@ def set_default_profile_visibility(payload: ProfileDefaultVisibilityRequest):
     """Hide or show the default profile in listings."""
     success, message = profile_service.set_default_profile_hidden(payload.hidden)
     if not success:
-        raise HTTPException(status_code=400, detail=message)
+        handle_bad_request(message)
     return {"success": True, "message": message, "hidden": payload.hidden}
 
 
@@ -87,14 +89,14 @@ def reset_profile(name: str):
     try:
         safe_name = validate_profile_name(name)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        handle_validation_error(e)
 
     # Explicitly sanitize to satisfy static analysis tools
     safe_name = os.path.basename(safe_name)  # noqa: PTH119
 
     profile_dir = profile_service.get_profile_dir(safe_name)
     if not profile_dir.exists():
-        raise HTTPException(status_code=404, detail=f"Profil '{safe_name}' nie istnieje")
+        handle_not_found("Profil", safe_name)
 
     # Stop any running processes first to ensure clean state and prevent
     # "auto-restart" illusion where dashboard sees old process with new session.
@@ -121,17 +123,17 @@ def login_profile_endpoint(payload: dict):
     """Start login helper process."""
     name = payload.get("name")
     if not name:
-        raise HTTPException(status_code=400, detail="Brak nazwy profilu")
+        handle_bad_request("Brak nazwy profilu")
 
     try:
         safe_name = validate_profile_name(name)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        handle_validation_error(e)
 
     success, message = process_service.start_login_process(safe_name)
     if not success:
         # If it's already running, it might be OK or not. Frontend expects success to start polling.
-        raise HTTPException(status_code=400, detail=message)
+        handle_bad_request(message)
 
     return {"success": True, "message": message}
 
@@ -156,36 +158,7 @@ def get_login_log(name: str, tail: int = 100):
     if not log_file.exists():
         return {"log": ""}
 
-    return _read_log_file_tail(log_file, tail)
-
-
-def _read_log_file_tail(log_file: Path, tail: int) -> dict:
-    """Helper to read log file tail synchronously."""
-    try:
-        tail = max(1, min(int(tail), 2000))
-        # Simple tail implementation
-        lines = []
-        with log_file.open(encoding="utf-8", errors="replace") as f:
-            all_lines = f.readlines()
-            lines = all_lines[-tail:]
-
-        return {"log": "".join(lines)}
-    except Exception as e:
-        return {"log": f"[Error reading log: {e}]"}
-
-
-def _read_log_file_lines(log_file: Path) -> list[str]:
-    """Read full log file safely."""
-    try:
-        with log_file.open(encoding="utf-8", errors="replace") as f:
-            return f.readlines()
-    except Exception as e:
-        return [f"[Error reading log: {e}]"]
-
-
-def _is_error_line(line: str) -> bool:
-    """Detect error/critical lines for profile logs."""
-    return "ERROR" in line or "CRITICAL" in line or "Traceback" in line or "Exception" in line
+    return read_log_file_tail(log_file, tail)
 
 
 # Alias router for singular /api/profile access if needed
@@ -212,21 +185,7 @@ def get_profile_logs(name: str, tail: int = 200, error_tail: int = 100):
     cwd = Path(__file__).parents[2]
     log_file = cwd / "logs" / "profiles" / f"{safe_name}.log"
 
-    if not log_file.exists():
-        return {"log": "", "errors": "", "exists": False, "lines": 0, "error_lines": 0}
-
-    lines = _read_log_file_lines(log_file)
-    log_lines = lines[-tail:]
-    error_lines = [line for line in lines if _is_error_line(line)]
-    error_lines = error_lines[-error_tail:]
-
-    return {
-        "log": "".join(log_lines),
-        "errors": "".join(error_lines),
-        "exists": True,
-        "lines": len(log_lines),
-        "error_lines": len(error_lines),
-    }
+    return get_log_with_errors(log_file, tail, error_tail)
 
 
 @single_router.post("/{name}/start")
@@ -271,7 +230,7 @@ def start_profile_endpoint(
         # But generic error should be 400.
         if "już pracuje" in message:
             return {"success": False, "message": message}
-        raise HTTPException(status_code=400, detail=message)
+        handle_bad_request(message)
 
     return {"success": True, "message": message}
 
@@ -294,11 +253,11 @@ def get_profile_status(name: str):
     try:
         safe_name = validate_profile_name(name)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+        handle_validation_error(e)
 
     # Check if profile exists
     if not profile_service.profile_exists(safe_name):
-        raise HTTPException(status_code=404, detail=f"Profil '{safe_name}' nie istnieje")
+        handle_not_found("Profil", safe_name)
 
     # Get all PIDs for this profile (run in thread pool to avoid blocking)
     pids = process_service.get_profile_pids(safe_name)
