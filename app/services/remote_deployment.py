@@ -188,33 +188,38 @@ class RemoteDeploymentService:
 
             remote_script_path = remote_script_path_or_error
 
-            # Prepare environment variables for script
-            env_vars = []
+            # Prepare environment variables
+            env_vars = {}
             if config.get("github_repo"):
-                env_vars.append(f"GITHUB_REPO={shlex.quote(config['github_repo'])}")
+                env_vars["GITHUB_REPO"] = config["github_repo"]
             if config.get("nas_host"):
-                env_vars.append(f"NAS_HOST={shlex.quote(config['nas_host'])}")
+                env_vars["NAS_HOST"] = config["nas_host"]
             if config.get("nas_share"):
-                env_vars.append(f"NAS_SHARE={shlex.quote(config['nas_share'])}")
+                env_vars["NAS_SHARE"] = config["nas_share"]
             if config.get("nas_username"):
-                env_vars.append(f"NAS_USERNAME={shlex.quote(config['nas_username'])}")
+                env_vars["NAS_USERNAME"] = config["nas_username"]
             if config.get("nas_password"):
-                env_vars.append(f"NAS_PASSWORD={shlex.quote(config['nas_password'])}")
+                env_vars["NAS_PASSWORD"] = config["nas_password"]
             if config.get("sudo_password"):
-                env_vars.append(f"SUDO_PASSWORD={shlex.quote(config['sudo_password'])}")
+                env_vars["SUDO_PASSWORD"] = config["sudo_password"]
             if config.get("install_postgres"):
-                env_vars.append(f"INSTALL_POSTGRES={shlex.quote(str(config['install_postgres']))}")
-
-            # Build execution command
-            env_str = " ".join(env_vars)
+                env_vars["INSTALL_POSTGRES"] = str(config["install_postgres"])
 
             if os_type.lower() == "windows":
                 # Windows: PowerShell execution
-                remote_cmd = f"powershell -ExecutionPolicy Bypass -File {remote_script_path}"
-                # TODO: Pass params to PSI script
+                # Format: $env:VAR='VAL'; $env:VAR2='VAL2'; powershell ...
+                env_prefix = "; ".join(f"$env:{k}='{v}'" for k, v in env_vars.items())
+                if env_prefix:
+                    env_prefix += "; "
+
+                remote_cmd = (
+                    f"{env_prefix}powershell -ExecutionPolicy Bypass -File {remote_script_path}"
+                )
             else:
                 # Linux: Bash execution
-                remote_cmd = f"{env_str} bash {remote_script_path}"
+                # Format: VAR='VAL' VAR2='VAL2' bash ...
+                env_prefix = " ".join(f"{k}={shlex.quote(v)}" for k, v in env_vars.items())
+                remote_cmd = f"{env_prefix} bash {remote_script_path}"
 
             ssh_cmd = ["ssh", "-tt", "-o", "StrictHostKeyChecking=no"]
             if ssh_opts:
@@ -344,30 +349,32 @@ class RemoteDeploymentService:
         remote_script_path = remote_script_path_or_error
 
         # Prepare environment variables
-        env_vars = []
+        env_vars = {}
         if config.get("github_repo"):
-            env_vars.append(f"GITHUB_REPO={shlex.quote(config['github_repo'])}")
+            env_vars["GITHUB_REPO"] = config["github_repo"]
         if config.get("nas_host"):
-            env_vars.append(f"NAS_HOST={shlex.quote(config['nas_host'])}")
+            env_vars["NAS_HOST"] = config["nas_host"]
         if config.get("nas_share"):
-            env_vars.append(f"NAS_SHARE={shlex.quote(config['nas_share'])}")
+            env_vars["NAS_SHARE"] = config["nas_share"]
         if config.get("nas_username"):
-            env_vars.append(f"NAS_USERNAME={shlex.quote(config['nas_username'])}")
+            env_vars["NAS_USERNAME"] = config["nas_username"]
         if config.get("nas_password"):
-            env_vars.append(f"NAS_PASSWORD={shlex.quote(config['nas_password'])}")
+            env_vars["NAS_PASSWORD"] = config["nas_password"]
         if config.get("sudo_password"):
-            env_vars.append(f"SUDO_PASSWORD={shlex.quote(config['sudo_password'])}")
+            env_vars["SUDO_PASSWORD"] = config["sudo_password"]
         if config.get("install_postgres"):
-            env_vars.append(f"INSTALL_POSTGRES={shlex.quote(config['install_postgres'])}")
+            env_vars["INSTALL_POSTGRES"] = str(config["install_postgres"])
 
         # Build execution command
         if os_type.lower() == "windows":
-            env_prefix = " ".join(f"$env:{var}" for var in env_vars)
-            exec_cmd = f"powershell -ExecutionPolicy Bypass -File {remote_script_path}"
+            # Windows: PowerShell execution with env vars
+            env_prefix = "; ".join(f"$env:{k}='{v}'" for k, v in env_vars.items())
             if env_prefix:
-                exec_cmd = f"{env_prefix}; {exec_cmd}"
+                env_prefix += "; "
+            exec_cmd = f"{env_prefix}powershell -ExecutionPolicy Bypass -File {remote_script_path}"
         else:
-            env_prefix = " ".join(env_vars)
+            # Linux: Bash execution
+            env_prefix = " ".join(f"{k}={shlex.quote(v)}" for k, v in env_vars.items())
             exec_cmd = f"chmod +x {remote_script_path} && {env_prefix} bash {remote_script_path}"
 
         # Build SSH command

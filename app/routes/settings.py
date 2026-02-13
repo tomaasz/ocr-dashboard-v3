@@ -1146,15 +1146,65 @@ def _parse_ls_entries(ls_output: str) -> list[dict]:
         if name in (".", ".."):
             continue
         perms = parts[0]
-        if perms.startswith("d"):
-            entry_type = "directory"
-        elif perms.startswith("l"):
-            entry_type = "link"
-        else:
-            entry_type = "file"
-        entries.append({"name": name, "type": entry_type, "permissions": perms, "size": parts[4]})
-    entries.sort(key=lambda x: (x["type"] != "directory", x["name"].lower()))
+        is_dir = perms.startswith("d") or perms.startswith("l")
+        entries.append({"name": name, "is_dir": is_dir})
+    entries.sort(key=lambda x: (not x["is_dir"], x["name"].lower()))
     return entries
+
+
+def _parse_powershell_entries(ps_output: str) -> list[dict]:
+    """Parse PowerShell Get-ChildItem JSON output into a list of entry dicts."""
+    entries = []
+    stripped = ps_output.strip()
+    if not stripped:
+        return entries
+    try:
+        data = json.loads(stripped)
+        # PowerShell returns a single object (not array) when there's only one item
+        if isinstance(data, dict):
+            data = [data]
+        for item in data:
+            name = item.get("Name", "")
+            if not name or name in (".", ".."):
+                continue
+            mode = item.get("Mode", "")
+            is_dir = mode.startswith("d") if mode else False
+            entries.append({"name": name, "is_dir": is_dir})
+    except (json.JSONDecodeError, TypeError):
+        return entries
+    entries.sort(key=lambda x: (not x["is_dir"], x["name"].lower()))
+    return entries
+
+
+def _compute_parent_path(path: str, os_type: str) -> str | None:
+    """Compute the parent directory path, OS-aware."""
+    if os_type == "windows":
+        # Normalize to backslashes for Windows
+        normalized = path.replace("/", "\\")
+        # Drive root like C:\ has no parent
+        if len(normalized) <= 3 and normalized[1:2] == ":":
+            return None
+        parent = normalized.rstrip("\\").rsplit("\\", 1)[0]
+        # Ensure drive root keeps trailing backslash: C:
+        if len(parent) == 2 and parent[1] == ":":
+            parent += "\\"
+        return parent
+    # Linux/Mac
+    if path == "/":
+        return None
+    parent = path.rstrip("/").rsplit("/", 1)[0]
+    return parent or "/"
+
+
+def _build_item_path(base_path: str, name: str, os_type: str) -> str:
+    """Build full path for an item, OS-aware."""
+    if os_type == "windows":
+        sep = "\\"
+        base = base_path.rstrip("\\")
+    else:
+        sep = "/"
+        base = base_path.rstrip("/")
+    return f"{base}{sep}{name}"
 
 
 @router.get(
@@ -1166,8 +1216,11 @@ def _parse_ls_entries(ls_output: str) -> list[dict]:
         504: {"description": "SSH connection timeout"},
     },
 )
-def browse_directory(host_id: str, path: str = "/"):
-    """Browse directories on a remote host via SSH."""
+def browse_directory(host_id: str, path: str = "/", os_type: str = "linux"):
+    """Browse directories on a remote host via SSH.
+
+    Supports Linux (ls) and Windows (PowerShell) hosts.
+    """
     try:
         config = get_effective_remote_config()
         hosts = config.get("OCR_REMOTE_HOSTS_LIST", [])
@@ -1175,7 +1228,7 @@ def browse_directory(host_id: str, path: str = "/"):
         if not host:
             raise HTTPException(status_code=404, detail=f"Host {host_id} not found")
 
-        safe_path = path.strip() or "/"
+        safe_path = path.strip() or ("/" if os_type != "windows" else "C:\\")
         ssh_user = validate_username(str(host.get("user", "root")).strip())
         ssh_host = validate_hostname(str(host.get("address", "")).strip())
         ssh_opts = validate_ssh_opts(str(host.get("sshOpts", "")).strip())
@@ -1190,22 +1243,53 @@ def browse_directory(host_id: str, path: str = "/"):
         ssh_cmd_parts = ["ssh"]
         if ssh_opts:
             ssh_cmd_parts.extend(shlex.split(ssh_opts))
-        ssh_cmd_parts.extend(
-            [f"{ssh_user}@{ssh_host}", f"ls -la --color=never {shlex.quote(safe_path)}"]
-        )
+
+        if os_type == "windows":
+            # PowerShell command for Windows directory listing
+            ps_cmd = (
+                f"powershell -NoProfile -Command \""
+                f"Get-ChildItem -Force '{safe_path}' "
+                f"| Select-Object Mode,Length,Name "
+                f"| ConvertTo-Json"
+                f"\""
+            )
+            ssh_cmd_parts.extend([f"{ssh_user}@{ssh_host}", ps_cmd])
+        else:
+            ssh_cmd_parts.extend(
+                [f"{ssh_user}@{ssh_host}", f"ls -la --color=never {shlex.quote(safe_path)}"]
+            )
 
         result = subprocess.run(
-            ssh_cmd_parts, capture_output=True, text=True, timeout=10, check=False
+            ssh_cmd_parts, capture_output=True, text=True, timeout=15, check=False
         )
         if result.returncode != 0:
             raise HTTPException(
                 status_code=500, detail=result.stderr.strip() or "Failed to list directory"
             )
 
-        return {"path": safe_path, "entries": _parse_ls_entries(result.stdout), "host_id": host_id}
+        if os_type == "windows":
+            raw_items = _parse_powershell_entries(result.stdout)
+        else:
+            raw_items = _parse_ls_entries(result.stdout)
+
+        # Build full paths for each item (matches local /api/browse format)
+        items = [
+            {"name": it["name"], "path": _build_item_path(safe_path, it["name"], os_type), "is_dir": it["is_dir"]}
+            for it in raw_items
+        ]
+
+        return {
+            "path": safe_path,
+            "parent": _compute_parent_path(safe_path, os_type),
+            "items": items,
+            "host_id": host_id,
+            "os_type": os_type,
+        }
 
     except subprocess.TimeoutExpired:
         raise HTTPException(status_code=504, detail="SSH connection timeout") from None
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 

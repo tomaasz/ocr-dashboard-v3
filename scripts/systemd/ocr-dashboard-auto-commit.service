@@ -4,3 +4,5 @@ Description=OCR Dashboard auto-commit + push (daily)
 [Service]
 Type=oneshot
 ExecStart=/home/tomaasz/ocr-dashboard-v3/scripts/commit_reminder.sh --auto-commit
+User=tomaasz
+Group=tomaasz

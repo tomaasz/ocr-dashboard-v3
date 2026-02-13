@@ -1,0 +1,209 @@
+Metadata-Version: 2.4
+Name: ocr-dashboard-v3
+Version: 1.0.0
+Summary: OCR Farm Dashboard V2 - Standalone web interface
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi>=0.109.0
+Requires-Dist: uvicorn>=0.27.0
+Requires-Dist: jinja2>=3.1.0
+Requires-Dist: httpx>=0.27.0
+Requires-Dist: pydantic>=2.0.0
+Requires-Dist: psycopg2-binary>=2.9.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.21.0; extra == "dev"
+
+# OCR Dashboard V2
+
+Samodzielny dashboard do zarządzania OCR Farm.
+
+## Quick Start
+
+```bash
+# Setup
+cd /home/tomaasz/ocr-dashboard-v3
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# Run
+OCR_DASHBOARD_PORT=9090 ./scripts/start_web.sh
+```
+
+Open: http://localhost:9090/v2
+
+## Repo Layout (Single Repo)
+
+This project uses a single working copy per host that is actively developed and
+kept in sync with `origin/main`.
+
+Expected paths:
+
+- **Linux/WSL**: `~/ocr-dashboard-v3`
+- **Windows**: `C:\Dev\ocr-dashboard-v3`
+
+## Automation (Sync + Reminders)
+
+On Ubuntu servers, systemd timers keep the runtime clone in sync and send commit
+reminders. On Windows, Task Scheduler provides the same behavior.
+
+Scripts:
+
+- `scripts/auto_sync_runtime.sh` (runtime auto-pull)
+- `scripts/commit_reminder.sh` (commit reminder / optional auto-commit)
+- `scripts/push_retry.sh` (retry push if clean)
+
+Systemd units:
+
+- `scripts/systemd/ocr-dashboard-auto-sync.*`
+- `scripts/systemd/ocr-dashboard-commit-reminder.*`
+- `scripts/systemd/ocr-dashboard-auto-commit.*`
+- `scripts/systemd/ocr-dashboard-push-retry.*`
+
+## Restart & Sanity Check
+
+After pulling changes on the runtime host:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart ocr-dashboard.service
+sudo systemctl status ocr-dashboard.service --no-pager
+```
+
+Quick local check:
+
+```bash
+curl -I http://127.0.0.1:9090/
+```
+
+If you see a 200/302/405 response, the app is running. A 500 usually indicates a template
+or settings error; check `journalctl -u ocr-dashboard.service -n 100 --no-pager`.
+
+## Host Workflow (Where to Work)
+
+Work directly in the main repo (`ocr-dashboard-v3`) and keep it clean so
+auto-sync can pull updates safely.
+
+Quick paths:
+
+- Linux/WSL: `~/ocr-dashboard-v3`
+- Windows: `C:\Dev\ocr-dashboard-v3`
+
+Suggested update flow:
+
+1. Commit locally in `ocr-dashboard-v3`.
+2. Push to GitHub.
+3. Auto-sync pulls from `origin/main` (or run `git pull` manually).
+
+## Remote Hosts Settings (UI-backed)
+
+Remote hosts configuration is editable from the UI at:
+
+```
+/#settings
+```
+
+Values are stored in:
+
+```
+~/.cache/ocr-dashboard-v3/remote_hosts.json
+```
+
+Environment variables are used as a fallback (see `docs/CONFIGURATION.md`).
+
+### Global Source Directory (NAS kosciesza)
+
+**Od 2026-02-04**: Wszystkie hosty używają wspólnej globalnej ścieżki źródłowej:
+
+```
+tomaasz@kosciesza:~/Genealogy/Sources/
+```
+
+Ścieżki w profilach są **relatywne** do tej bazy. Przykład:
+
+- **Global base**: `tomaasz@kosciesza:~/Genealogy/Sources/`
+- **Profile path**: `Nurskie dokumenty/1_43_0_4 Nurskie grodzkie wieczyste`
+- **Result**: `tomaasz@kosciesza:~/Genealogy/Sources/Nurskie dokumenty/1_43_0_4 Nurskie grodzkie wieczyste`
+
+**Szczegóły**:
+
+- [docs/GLOBAL_SOURCE_CONFIG.md](docs/GLOBAL_SOURCE_CONFIG.md) - Architektura i konfiguracja
+- [docs/SOURCE_PATH_EXAMPLES.md](docs/SOURCE_PATH_EXAMPLES.md) - Przykłady użycia
+
+**Tailscale**: kosciesza IP: `100.80.240.52`
+
+## Configuration
+
+| Variable              | Description                  | Default |
+| --------------------- | ---------------------------- | ------- |
+| `OCR_PG_DSN`          | PostgreSQL connection string | -       |
+| `OCR_REMOTE_HOST`     | Remote worker host           | -       |
+| `OCR_DEFAULT_WORKERS` | Default workers per profile  | 2       |
+
+See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for full list.
+
+## Project Structure
+
+app/
+├── main.py # FastAPI entry point
+├── config.py # Configuration
+├── routes/ # API endpoints
+├── services/ # Business logic
+├── models/ # Pydantic models
+└── utils/ # Helpers
+
+```
+
+## Antigravity Workspace
+
+Ten projekt wykorzystuje strukturę workspace zgodną z [antigravity-workspace-template](https://github.com/study8677/antigravity-workspace-template).
+
+### Struktura Workspace
+
+```
+
+.agent/
+├── workflows/ # Zdefiniowane workflow dla typowych zadań
+│ ├── start-dev.md
+│ ├── deploy.md
+│ └── test.md
+└── skills/ # Modułowe możliwości agenta
+└── ocr-management/
+
+.context/ # Baza wiedzy auto-wstrzykiwana do agenta
+├── project-overview.md
+├── architecture.md
+└── api-reference.md
+
+.antigravity/ # Reguły dla Antigravity IDE
+└── rules.md
+
+artifacts/ # Wyjścia i dowody pracy agenta
+
+````
+
+### Workflows
+
+Użyj workflows dla typowych zadań:
+
+- `/start-dev` - Uruchomienie środowiska deweloperskiego
+- `/deploy` - Wdrożenie aplikacji
+- `/test` - Uruchomienie testów
+
+### Skills
+
+- **OCR Management** - Zarządzanie OCR workers i profilami Chrome
+
+Więcej informacji w [.agent/skills/ocr-management/SKILL.md](.agent/skills/ocr-management/SKILL.md)
+
+## Code Quality (SonarQube)
+
+To run a local SonarQube instance for code quality checks:
+
+```bash
+./scripts/start_sonarqube.sh
+````
+
+- **Dashboard**: http://localhost:9100
+- **Login**: admin / admin

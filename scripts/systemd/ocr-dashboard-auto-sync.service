@@ -4,3 +4,5 @@ Description=OCR Dashboard auto-sync runtime from GitHub
 [Service]
 Type=oneshot
 ExecStart=/home/tomaasz/ocr-dashboard-v3/scripts/auto_sync_runtime.sh
+User=tomaasz
+Group=tomaasz
