@@ -8,11 +8,9 @@ and database operations.
 import json
 import os
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
-from unittest.mock import MagicMock, Mock, mock_open, patch
+from unittest.mock import Mock, patch
 
 import pytest
-from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app.routes.dashboard import (
@@ -99,7 +97,7 @@ class TestTableIdentifier:
         mock_sql.Identifier.return_value = mock_identifier
         mock_sql.SQL.return_value.join.return_value = "schema.table"
 
-        result = _table_identifier("public.ocr_raw_texts")
+        _table_identifier("public.ocr_raw_texts")
 
         # Verify Identifier was called for both schema and table
         assert mock_sql.Identifier.call_count == 2
@@ -113,7 +111,7 @@ class TestTableIdentifier:
         mock_identifier = Mock()
         mock_sql.Identifier.return_value = mock_identifier
 
-        result = _table_identifier("my_table")
+        _table_identifier("my_table")
 
         # Verify Identifier was called once for table only
         mock_sql.Identifier.assert_called_once_with("my_table")
@@ -486,7 +484,6 @@ class TestDashboardRoutes:
         """Should render dashboard2 template."""
         # Dashboard2 requires template file, skip detailed testing
         # Just verify route exists
-        pass
 
     def test_dashboard_v2_render(self, client, mock_services):
         """Should render main dashboard with profiles."""
