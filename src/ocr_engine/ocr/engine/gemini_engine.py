@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
+from threading import Thread
 
 from PIL import Image, ImageDraw, ImageFont
 from playwright.sync_api import BrowserContext, Page
@@ -1012,30 +1013,75 @@ class GeminiEngine:
                     logger.error(f"❌ [Startup] W{w.wid} wait_for_ui_ready failed: {e}")
                     raise
 
-        # Parallel initialization
-        logger.info(f"[Init] Initializing {len(self.workers)} workers in parallel...")
+        # Hybrid initialization: Workers become available as soon as they're ready!
+        # Start initialization in background thread so main loop can begin immediately
+        logger.info(f"[Init] Starting {len(self.workers)} workers in background...")
+        logger.info(
+            "[Init] 🚀 Main loop will start immediately - workers become available as they load!"
+        )
+
+        # Mark all workers as busy initially (they'll become available as they load)
+        for w in self.workers:
+            w.busy = True
+
         start_time = time.time()
+        ready_count = [0]  # Use list for mutable closure
 
-        with ThreadPoolExecutor(max_workers=len(self.workers)) as executor:
-            futures = {executor.submit(_init_single_worker, w): w for w in self.workers}
+        def _init_workers_background():
+            """Background thread that initializes workers and marks them ready."""
+            nonlocal ready_count
+            try:
+                with ThreadPoolExecutor(max_workers=len(self.workers)) as executor:
+                    futures = {executor.submit(_init_single_worker, w): w for w in self.workers}
 
-            for future in as_completed(futures):
-                w = futures[future]
-                try:
-                    future.result()  # Raises exception if worker init failed
-                    elapsed = time.time() - start_time
-                    logger.info(f"✅ [Init] W{w.wid} ready after {elapsed:.1f}s")
-                except Exception as e:
-                    logger.error(f"❌ [Init] W{w.wid} failed: {e}")
-                    # Save error screenshots for all workers
-                    for ww in self.workers:
-                        self._save_startup_error_screenshot(ww.page, ww.wid, "Init failed")
-                    raise
+                    for future in as_completed(futures):
+                        w = futures[future]
+                        try:
+                            future.result()  # Raises exception if worker init failed
+                            elapsed = time.time() - start_time
+                            ready_count[0] += 1
 
-        total_time = time.time() - start_time
-        logger.info(f"✅ [Init] All {len(self.workers)} workers ready in {total_time:.1f}s")
+                            # Mark worker as ready immediately - main loop can now use it!
+                            w.busy = False
 
-        self._auth_ensure("startup", force=True)
+                            if ready_count[0] == 1:
+                                logger.info(
+                                    f"✅ [Init] W{w.wid} ready after {elapsed:.1f}s - AVAILABLE FOR WORK!"
+                                )
+                            else:
+                                logger.info(
+                                    f"✅ [Init] W{w.wid} ready after {elapsed:.1f}s ({ready_count[0]}/{len(self.workers)})"
+                                )
+
+                        except Exception as e:
+                            logger.error(f"❌ [Init] W{w.wid} failed: {e}")
+                            # Save error screenshots for all workers
+                            for ww in self.workers:
+                                self._save_startup_error_screenshot(ww.page, ww.wid, "Init failed")
+                            # Don't raise - let other workers continue
+                            w.busy = False  # Mark as not busy so it doesn't block forever
+
+                total_time = time.time() - start_time
+                logger.info(f"✅ [Init] All {len(self.workers)} workers ready in {total_time:.1f}s")
+
+            except Exception as e:
+                logger.error(f"❌ [Init] Background initialization failed: {e}")
+                # Mark all workers as not busy to avoid deadlock
+                for w in self.workers:
+                    w.busy = False
+
+        # Start background thread (daemon so it doesn't block shutdown)
+        init_thread = Thread(target=_init_workers_background, daemon=True, name="WorkerInit")
+        init_thread.start()
+
+        # Return immediately - main loop can start!
+        # Workers will become available as they finish loading
+        logger.info(
+            "[Init] 🎯 Returning to main loop - workers will become available progressively!"
+        )
+
+        # Skip _auth_ensure during startup - workers handle their own validation
+        # (calling it here would block waiting for workers)
 
     def _worker_start(self, w: PageWorker, image_path: Path, prompt_text: str) -> None:
         """Start processing a file on worker. Handles errors gracefully."""
