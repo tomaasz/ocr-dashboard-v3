@@ -111,15 +111,13 @@ def main():
     display = _ensure_display()
     logger.info(f"Using DISPLAY={display}")
 
-    proxy_config = load_proxy_config(profile_name, project_root / "config" / "proxies.json")
-    if proxy_config:
-        safe_proxy = proxy_config.copy()
-        if "password" in safe_proxy:
-            safe_proxy["password"] = "***"
-        logger.info(f"Using proxy for profile '{profile_name}': {safe_proxy}")
+    # Skip proxy for login - proxy causes navigation hangs in Chromium.
+    # The login session (cookies) will be saved to the profile directory
+    # and will work when the OCR engine runs with the proxy later.
+    logger.info("Note: Proxy disabled for login (session-only mode)")
 
     controller = GeminiBrowserController(
-        profile_dir=profile_dir, headed=True, enable_video=False, proxy_config=proxy_config
+        profile_dir=profile_dir, headed=True, enable_video=False, proxy_config=None
     )
 
     try:
