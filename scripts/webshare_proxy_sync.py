@@ -168,8 +168,6 @@ def main() -> int:
     proxies_file = Path(proxies_file_raw)  # nosec B108
 
     profiles = _list_profiles(cache_dir)
-    if not profiles:
-        profiles = _load_existing_profiles(proxies_file)
 
     if not profiles:
         print("No profiles found", file=sys.stderr)
