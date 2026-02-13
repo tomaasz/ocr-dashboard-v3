@@ -46,17 +46,20 @@ except ImportError:
 class ActivityLogger:
     """Logger for system activity events."""
 
-    # Default DSN matching the one in start_farm.sh
-    DEFAULT_DSN = "postgresql://tomaasz:123Karinka!%40%23@127.0.0.1:5432/ocr"
-
     def __init__(self, pg_dsn: str | None = None):
         """
         Initialize activity logger.
 
         Args:
-            pg_dsn: PostgreSQL connection string. If None, uses OCR_PG_DSN env var or default.
+            pg_dsn: PostgreSQL connection string. If None, uses OCR_PG_DSN env var.
+                   Format: postgresql://user:password@host:port/database
+
+        Note:
+            OCR_PG_DSN environment variable must be set for database logging.
+            If not set, events will be logged to local files as fallback.
         """
-        self.pg_dsn = pg_dsn or os.environ.get("OCR_PG_DSN") or self.DEFAULT_DSN
+        self.pg_dsn = pg_dsn or os.environ.get("OCR_PG_DSN")
+
         self._start_times: dict[str, float] = {}  # Track start times for duration calculation
 
     def _get_connection(self):

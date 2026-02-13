@@ -30,14 +30,24 @@ from .services.update_counts import (
 # Track server start time for session filtering
 SERVER_START_TIME = time.time()
 
+# Track background tasks to prevent garbage collection
+_background_tasks: set[asyncio.Task] = set()
+
+
+def _track_task(task: asyncio.Task) -> None:
+    """Track background task and auto-remove when done."""
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+
+
 @asynccontextmanager
 async def lifespan(app_instance: FastAPI):
     """Manage application startup/shutdown lifecycle."""
     print(f"🚀 OCR Dashboard V2 started at {time.strftime('%Y-%m-%d %H:%M:%S')}")
     _schedule_pending_cleanup()
-    asyncio.create_task(asyncio.to_thread(run_update_counts_if_due))
-    asyncio.create_task(asyncio.to_thread(listen_new_source_paths))
-    asyncio.create_task(watch_new_source_paths())
+    _track_task(asyncio.create_task(asyncio.to_thread(run_update_counts_if_due)))
+    _track_task(asyncio.create_task(asyncio.to_thread(listen_new_source_paths)))
+    _track_task(asyncio.create_task(watch_new_source_paths()))
     yield
     print(f"👋 OCR Dashboard V2 stopping at {time.strftime('%Y-%m-%d %H:%M:%S')}")
 
@@ -97,6 +107,6 @@ def _schedule_pending_cleanup() -> None:
     force = bool(payload.get("force", False))
     reset_profiles = bool(payload.get("reset_profiles", False))
 
-    asyncio.create_task(asyncio.to_thread(cleanup_folders, BASE_DIR, targets, force))
+    _track_task(asyncio.create_task(asyncio.to_thread(cleanup_folders, BASE_DIR, targets, force)))
     if reset_profiles:
-        asyncio.create_task(asyncio.to_thread(reset_all_profiles))
+        _track_task(asyncio.create_task(asyncio.to_thread(reset_all_profiles)))

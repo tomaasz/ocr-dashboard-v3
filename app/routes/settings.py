@@ -20,6 +20,8 @@ from pathlib import Path
 from fastapi import APIRouter, BackgroundTasks, Body, HTTPException
 from starlette.responses import StreamingResponse
 
+from src.ocr_engine.utils.activity_logger import ActivityLogger
+
 from ..config import (
     AUTO_RESTART_CONFIG_FILE,
     BASE_DIR,
@@ -36,7 +38,6 @@ from ..services.cleanup import DEFAULT_CLEANUP_TARGETS, cleanup_folders
 from ..services.remote_config import get_effective_remote_config, save_remote_config
 from ..services.remote_deployment import RemoteDeploymentService
 from ..services.source_resolver import get_resolver
-from ..utils.activity_logger import ActivityLogger
 from ..utils.db import execute_single
 from ..utils.security import (
     validate_hostname,
