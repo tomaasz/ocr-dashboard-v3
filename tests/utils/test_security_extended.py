@@ -33,16 +33,20 @@ class TestValidateProfileName:
 
     def test_rejects_path_traversal(self):
         """Should reject path traversal attempts."""
-        with pytest.raises(ValueError, match="path traversal"):
+        # The regex check fails first, so we get "Invalid profile name" error
+        with pytest.raises(ValueError, match="Invalid profile name"):
             validate_profile_name("../etc/passwd")
 
+        # These have ".." which is caught by the explicit check
         with pytest.raises(ValueError, match="path traversal"):
-            validate_profile_name("profile/../other")
+            validate_profile_name("profile..test")
 
-        with pytest.raises(ValueError, match="path traversal"):
+        # Forward slash is caught by regex first
+        with pytest.raises(ValueError, match="Invalid profile name"):
             validate_profile_name("profile/subdir")
 
-        with pytest.raises(ValueError, match="path traversal"):
+        # Backslash is also caught by regex first
+        with pytest.raises(ValueError, match="Invalid profile name"):
             validate_profile_name("profile\\subdir")
 
     def test_rejects_too_long_name(self):
