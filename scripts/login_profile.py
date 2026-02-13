@@ -20,61 +20,71 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger("login_profile")
 
 
-def test_x11_connection(display: str) -> bool:
+def _ensure_display() -> str:
     """
-    Test connectivity to X Server using xset -q.
-    Returns True if successful, False otherwise.
+    Ensure a DISPLAY is available. If no X11 display exists, start Xvfb.
+    Returns the DISPLAY string.
     """
-    try:
-        env = os.environ.copy()
-        env["DISPLAY"] = display
+    # Check if DISPLAY is already set and working
+    existing_display = os.environ.get("DISPLAY", "")
+    if existing_display:
+        try:
+            result = subprocess.run(
+                ["xset", "-q"],
+                env={**os.environ, "DISPLAY": existing_display},
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=3,
+                check=False,
+            )
+            if result.returncode == 0:
+                logger.info(f"✅ Using existing X11 display: {existing_display}")
+                return existing_display
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            pass
 
-        # Run xset q with timeout
-        logger.info(f"Testing X11 connection to {display}...")
-        result = subprocess.run(
-            ["xset", "-q"],
-            env=env,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.PIPE,
-            timeout=5,  # 5 seconds timeout
-            check=False,
-        )
-
-        if result.returncode == 0:
-            logger.info("✅ X11 connection successful")
-            return True
-        stderr = result.stderr.decode(errors="replace").strip()
-        logger.error(f"❌ X11 connection failed (code {result.returncode}): {stderr}")
-        return False
-
-    except subprocess.TimeoutExpired:
-        logger.error(
-            "❌ X11 connection TIMED OUT after 5s. Firewall issue? (Use 'Allow Public Access' in VcXsrv)"
-        )
-        return False
-    except FileNotFoundError:
-        logger.warning("⚠️ 'xset' command not found. Skipping X11 check.")
-        return True  # Assume ok if we can't check
-    except Exception as e:
-        logger.error(f"❌ X11 connection check error: {e}")
-        return False
-
-
-def load_x11_display():
-    """Load X11 display from config file."""
+    # Try loading from config
     try:
         cache_dir = Path.home() / ".cache" / "ocr-dashboard-v3"
         config_file = cache_dir / "x11_display.json"
-
         if config_file.exists():
             data = json.loads(config_file.read_text(encoding="utf-8"))
             display = data.get("display", "").strip()
             if display:
-                logger.info(f"Loaded X11 Display overrides: {display}")
+                logger.info(f"Loaded X11 Display from config: {display}")
+                os.environ["DISPLAY"] = display
                 return display
     except Exception as e:
-        logger.warning(f"Failed to load X11 display config: {e}")
-    return None
+        logger.debug(f"Failed to load X11 config: {e}")
+
+    # No display available - start Xvfb
+    logger.info("No X11 display available. Starting Xvfb virtual display...")
+    xvfb_display = ":99"
+    try:
+        # Kill any existing Xvfb on :99
+        subprocess.run(
+            ["pkill", "-f", f"Xvfb {xvfb_display}"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+        time.sleep(0.5)
+
+        # Start Xvfb
+        subprocess.Popen(
+            ["Xvfb", xvfb_display, "-screen", "0", "1920x1080x24", "-ac"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        time.sleep(1)
+        os.environ["DISPLAY"] = xvfb_display
+        logger.info(f"✅ Xvfb started on {xvfb_display}")
+        return xvfb_display
+    except Exception as e:
+        logger.error(f"❌ Failed to start Xvfb: {e}")
+        # Last resort fallback
+        os.environ["DISPLAY"] = ":0"
+        return ":0"
 
 
 def main():
@@ -97,31 +107,9 @@ def main():
 
     logger.info(f"Profile Directory: {profile_dir}")
 
-    # Load and apply X11 Display settings
-    x11_display = load_x11_display()
-    if x11_display:
-        logger.info(f"Setting DISPLAY={x11_display}")
-        os.environ["DISPLAY"] = x11_display
-    elif "DISPLAY" not in os.environ:
-        logger.warning(
-            "DISPLAY environment variable is not set and no override found. Browser might fail to start!"
-        )
-        # Try default :0 just in case
-        logger.info("Setting default DISPLAY=:0")
-        os.environ["DISPLAY"] = ":0"
-    else:
-        logger.info(f"Using existing DISPLAY={os.environ['DISPLAY']}")
-
-    # Verify X11 connection
-    current_display = os.environ.get("DISPLAY", ":0")
-    if not test_x11_connection(current_display):
-        logger.critical("🛑 ABORTING: Cannot connect to X Server.")
-        logger.critical("Please check:")
-        logger.critical("1. Is Xming/VcXsrv running?")
-        logger.critical("2. Is 'Disable Access Control' checked?")
-        logger.critical("3. Is Windows Firewall allowing the connection?")
-        logger.critical("4. Is the IP address correct? (Currently trying: " + current_display + ")")
-        sys.exit(1)
+    # Ensure display is available (X11 or Xvfb)
+    display = _ensure_display()
+    logger.info(f"Using DISPLAY={display}")
 
     proxy_config = load_proxy_config(profile_name, project_root / "config" / "proxies.json")
     if proxy_config:
@@ -136,7 +124,6 @@ def main():
 
     try:
         # Start browser WITHOUT clean start check to avoid SessionExpiredError
-        # This allows user to manually login when session expires
         controller.start(skip_clean_start=True)
         logger.info("Browser started.")
 
@@ -160,22 +147,30 @@ def main():
                 logger.info("Credentials found. Attempting auto-login...")
                 try:
                     if auto_login.perform_login(page):
-                        logger.info("Auto-login successful!")
+                        logger.info("✅ Auto-login successful!")
+                        # Keep browser open briefly to save session
+                        logger.info("Saving session (waiting 5s)...")
+                        time.sleep(5)
+                        logger.info("Session saved. Closing browser.")
+                        return
                     else:
-                        logger.warning("Auto-login failed or manual intervention required.")
+                        logger.warning("❌ Auto-login failed.")
                 except Exception as e:
                     logger.error(f"Auto-login error: {e}")
+            else:
+                logger.warning(
+                    "Cannot auto-login - missing email/password in config/credentials.json"
+                )
 
             logger.info("\n=== LOGIN MODE ACTIVE ===")
-            logger.info("Please interact with the browser window to log in.")
-            logger.info("Close the browser window to finish this session.")
+            logger.info("Waiting for browser to close or auto-login to complete...")
             logger.info("=========================\n")
 
         while True:
             time.sleep(1)
             # Check if browser is still connected
             if controller.browser and not controller.browser.is_connected():
-                logger.info("Browser closed by user.")
+                logger.info("Browser closed.")
                 break
 
     except KeyboardInterrupt:
@@ -183,8 +178,15 @@ def main():
     finally:
         try:
             controller.close()
-        except:
+        except Exception:
             pass
+        # Cleanup Xvfb if we started it
+        subprocess.run(
+            ["pkill", "-f", "Xvfb :99"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
 
 
 if __name__ == "__main__":
