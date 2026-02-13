@@ -15,7 +15,7 @@ import os
 import re
 import time
 import traceback
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
@@ -962,16 +962,16 @@ class GeminiEngine:
                     f"with shared context ({len(context.pages)} tabs)"
                 )
 
-        # Initialize all workers
-        for w in self.workers:
+        # Initialize all workers in parallel for faster startup
+        def _init_single_worker(w: PageWorker) -> PageWorker:
+            """Initialize a single worker (goto + wait_for_ui_ready)."""
             try:
                 w.page.goto("https://gemini.google.com/app?hl=pl", wait_until="domcontentloaded")
             except Exception as e:
                 reason = "Page.goto timeout" if "Timeout" in str(e) else "Page.goto failed"
                 logger.error(f"❌ [Startup] W{w.wid} {reason}: {e}")
-                for ww in self.workers:
-                    self._save_startup_error_screenshot(ww.page, ww.wid, reason)
                 raise
+
             while True:
                 try:
                     self.browser.wait_for_ui_ready(w.page)
@@ -985,13 +985,14 @@ class GeminiEngine:
                             f"[W{w.wid}] 🧠 Pro model will be set via @Pro prompt prefix (skip UI enforce)"
                         )
 
-                    break
+                    return w  # Success!
+
                 except SessionExpiredError:
                     if self._capture_session_screenshot(w.page, "wait_for_ui_ready"):
                         raise
                     wait_s = self._next_backoff_seconds(self._session_retry_count)
                     logger.warning(
-                        f"⚠️ [Session] Screenshot missing, retrying UI ready in {wait_s}s (no proof)."
+                        f"⚠️ [Session] W{w.wid} retrying UI ready in {wait_s}s (no proof)."
                     )
                     time.sleep(wait_s)
                     try:
@@ -1000,9 +1001,30 @@ class GeminiEngine:
                         pass
                 except Exception as e:
                     logger.error(f"❌ [Startup] W{w.wid} wait_for_ui_ready failed: {e}")
-                    for ww in self.workers:
-                        self._save_startup_error_screenshot(ww.page, ww.wid, "UI not ready")
                     raise
+
+        # Parallel initialization
+        logger.info(f"[Init] Initializing {len(self.workers)} workers in parallel...")
+        start_time = time.time()
+
+        with ThreadPoolExecutor(max_workers=len(self.workers)) as executor:
+            futures = {executor.submit(_init_single_worker, w): w for w in self.workers}
+
+            for future in as_completed(futures):
+                w = futures[future]
+                try:
+                    future.result()  # Raises exception if worker init failed
+                    elapsed = time.time() - start_time
+                    logger.info(f"✅ [Init] W{w.wid} ready after {elapsed:.1f}s")
+                except Exception as e:
+                    logger.error(f"❌ [Init] W{w.wid} failed: {e}")
+                    # Save error screenshots for all workers
+                    for ww in self.workers:
+                        self._save_startup_error_screenshot(ww.page, ww.wid, "Init failed")
+                    raise
+
+        total_time = time.time() - start_time
+        logger.info(f"✅ [Init] All {len(self.workers)} workers ready in {total_time:.1f}s")
 
         self._auth_ensure("startup", force=True)
 
