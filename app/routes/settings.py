@@ -39,6 +39,7 @@ from ..services.remote_config import get_effective_remote_config, save_remote_co
 from ..services.remote_deployment import RemoteDeploymentService
 from ..services.source_resolver import get_resolver
 from ..utils.db import execute_single
+from ..utils.error_handlers import handle_server_error
 from ..utils.security import (
     validate_hostname,
     validate_ssh_opts,
@@ -123,7 +124,7 @@ def save_favorites(favorites: list[str]):
         )
         return {"success": True}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        handle_server_error(e)
 
 
 @router.get("/browse")
@@ -182,7 +183,7 @@ def set_auto_restart_setting(enabled: bool):
         )
         return {"success": True, "enabled": enabled}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        handle_server_error(e)
 
 
 @router.get("/x11-display")
@@ -211,7 +212,7 @@ def set_x11_display_setting(display: str):
         )
         return {"success": True, "display": display}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        handle_server_error(e)
 
 
 @router.get("/settings/remote-hosts")
@@ -229,7 +230,7 @@ def set_remote_hosts(payload: dict):
         saved = save_remote_config(payload)
         return {"success": True, "config": saved}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        handle_server_error(e)
 
 
 def _resolve_remote_hosts() -> list[dict]:
@@ -953,7 +954,7 @@ def set_autorestart(enabled: bool):
         )
         return {"success": True, "enabled": enabled}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        handle_server_error(e)
 
 
 @router.get("/settings/x11-display")
@@ -979,7 +980,7 @@ def set_x11_display(display: str):
         )
         return {"success": True, "display": display}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        handle_server_error(e)
 
 
 @router.get("/settings/update-counts")
@@ -1037,7 +1038,7 @@ def set_update_counts_settings(payload: dict = Body(default_factory=dict)):
         )
         return {"success": True, "on_new_paths": on_new_paths, "poll_sec": poll_sec}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        handle_server_error(e)
 
 
 @router.get("/settings/webshare")
@@ -1075,7 +1076,7 @@ def set_webshare_settings(payload: dict = Body(default_factory=dict)):
         _write_env_file(ENV_FILE, updates)
         return {"success": True}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        handle_server_error(e)
 
 
 @router.get("/settings/webshare/status")
@@ -1122,7 +1123,7 @@ def run_webshare_sync():
             pass
         return payload
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        handle_server_error(e)
 
 
 _MIN_LS_PARTS = 9
@@ -1303,7 +1304,7 @@ def browse_directory(host_id: str, path: str = "/", os_type: str = "linux"):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        handle_server_error(e)
 
 
 @router.post(
@@ -1364,7 +1365,7 @@ def deploy_to_remote_host(payload: dict = Body(default_factory=dict)):
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        handle_server_error(e)
 
 
 @router.get("/settings/remote-deployment/available-scripts")
@@ -1749,7 +1750,7 @@ def sync_profile_to_host(payload: dict = Body(default_factory=dict)):
         raise HTTPException(status_code=504, detail="Profile sync timed out") from None
     except Exception as e:
         logger.error(f"Profile sync error: {e}")
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        handle_server_error(e)
 
 
 _BYTES_PER_MB = 1024 * 1024

@@ -13,11 +13,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, Body
 
 from .. import config
 from ..services import process as process_service
 from ..services import profiles as profile_service
+from ..utils.error_handlers import handle_bad_request, handle_server_error
 from .dashboard import _fetch_profile_db_stats
 
 router = APIRouter(prefix="/api/limits", tags=["limits"])
@@ -45,14 +46,14 @@ def _parse_parallel(value: object) -> int | None:
     try:
         return int(value)  # type: ignore[arg-type]
     except (ValueError, TypeError):
-        raise HTTPException(status_code=400, detail="Nieprawidłowa wartość parallel") from None
+        handle_bad_request("Nieprawidłowa wartość parallel")
 
 
 def _sanitize_host_id(host_id: object) -> str:
     """Validate and return a sanitized host_id string."""
     safe = str(host_id).strip()
     if not _SAFE_HOST_ID_RE.match(safe):
-        raise HTTPException(status_code=400, detail="Nieprawidłowy identyfikator hosta")
+        handle_bad_request("Nieprawidłowy identyfikator hosta")
     return safe
 
 
@@ -61,7 +62,7 @@ def _sanitize_profiles(profiles: list[str]) -> list[str]:
     sanitized: list[str] = []
     for p in profiles:
         if not _SAFE_PROFILE_RE.match(p):
-            raise HTTPException(status_code=400, detail=f"Nieprawidłowa nazwa profilu: {p}")
+            handle_bad_request(f"Nieprawidłowa nazwa profilu: {p}")
         sanitized.append(str(p))
     return sanitized
 
@@ -135,18 +136,21 @@ def _run_remote_check(
             host_id, profiles=profiles, quick=quick, parallel=parallel_val
         )
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        handle_server_error(exc)
     if not ok:
-        raise HTTPException(status_code=500, detail=message)
+        handle_server_error(Exception(message))
     return {"status": "completed", "results": {"results": results, "host_id": host_id}}
 
 
-@router.post("/run", responses={400: {"description": "Validation error"}, 500: {"description": "Check failed"}})
+@router.post(
+    "/run",
+    responses={400: {"description": "Validation error"}, 500: {"description": "Check failed"}},
+)
 def run_limit_check(payload: Annotated[dict, Body(default_factory=dict)]):
     """Run a quick limit status check based on current DB state."""
     profiles = _coerce_profiles(payload.get("profiles"))
     if not profiles:
-        raise HTTPException(status_code=400, detail="Wybierz przynajmniej jeden profil")
+        handle_bad_request("Wybierz przynajmniej jeden profil")
 
     host_id = payload.get("host")
     quick = bool(payload.get("quick", False))
@@ -182,7 +186,7 @@ def stop_limit_precheck():
     """Stop running limit precheck process."""
     ok, message = process_service.stop_limit_precheck()
     if not ok:
-        raise HTTPException(status_code=400, detail=message)
+        handle_bad_request(message)
     return {"success": True, "message": message}
 
 
