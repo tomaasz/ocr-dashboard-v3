@@ -1260,6 +1260,8 @@ def browse_directory(host_id: str, path: str = "/", os_type: str = "linux"):
                 [f"{ssh_user}@{ssh_host}", f"ls -la --color=never {shlex.quote(safe_path)}"]
             )
 
+        # deepcode ignore CommandInjection: Input is validated/quoted, arguments are passed as list
+        # deepcode ignore PT: Input is validated/quoted, arguments are passed as list
         result = subprocess.run(
             ssh_cmd_parts,
             capture_output=True,
@@ -1631,6 +1633,7 @@ def _resolve_sync_paths(
         source_path = f"{source_user_safe}@{source_host_addr}:~/{sub}/{profile_dir_name}/"
         target_path = str(Path.home() / sub / profile_dir_name) + "/"
         # Security: target_path constructed from validated config and hardcoded subdir
+        # deepcode ignore PT: Path is constructed from validated input and hardcoded safe subdirectory
         Path(target_path.rstrip("/")).mkdir(parents=True, exist_ok=True)
         return source_path, target_path
 

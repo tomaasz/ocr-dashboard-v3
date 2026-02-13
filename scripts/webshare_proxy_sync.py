@@ -160,6 +160,7 @@ def main() -> int:
     # Prevent path traversal
     if ".." in proxies_file_raw or proxies_file_raw.startswith("/"):
         proxies_file_raw = "config/proxies.json"
+    # deepcode ignore PT: Safe default provided, input sanitized
     proxies_file = Path(proxies_file_raw)
 
     profiles = _list_profiles(cache_dir)
