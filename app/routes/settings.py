@@ -1253,6 +1253,10 @@ def browse_directory(host_id: str, path: str = "/", os_type: str = "linux"):
                 [f"{ssh_user}@{ssh_host}", f"ls -la --color=never {shlex.quote(safe_path)}"]
             )
 
+        # Security: Command injection prevented by:
+        # 1. validate_hostname() and validate_username() ensure safe input
+        # 2. shlex.quote() escapes the path
+        # 3. subprocess.run() uses list (not shell string)
         # deepcode ignore CommandInjection: Input is validated/quoted, arguments are passed as list
         # deepcode ignore PT: Input is validated/quoted, arguments are passed as list
         result = subprocess.run(
@@ -1617,10 +1621,23 @@ def _resolve_sync_paths(
 
     if target_host == "local":
         source_path = f"{source_user_safe}@{source_host_addr}:~/{sub}/{profile_dir_name}/"
-        target_path = str(Path.home() / sub / profile_dir_name) + "/"
-        # Security: target_path constructed from validated config and hardcoded subdir
-        # deepcode ignore PT: Path is constructed from validated input and hardcoded safe subdirectory
-        Path(target_path.rstrip("/")).mkdir(parents=True, exist_ok=True)
+        target_path_obj = Path.home() / sub / profile_dir_name
+
+        # Security: Validate that resolved path is within user's home directory
+        try:
+            resolved_target = target_path_obj.resolve()
+            resolved_home = Path.home().resolve()
+            if not resolved_target.is_relative_to(resolved_home):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid target path: must be within user's home directory",
+                )
+        except (ValueError, OSError) as e:
+            raise HTTPException(status_code=400, detail=f"Invalid target path: {e}") from e
+
+        target_path = str(target_path_obj) + "/"
+        # deepcode ignore PT: Path is validated to be within home directory
+        target_path_obj.mkdir(parents=True, exist_ok=True)
         return source_path, target_path
 
     raise HTTPException(

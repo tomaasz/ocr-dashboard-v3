@@ -51,7 +51,8 @@ def main() -> int:
     # Prevent path traversal
     if ".." in ip_file_raw or ip_file_raw.startswith("/"):
         ip_file_raw = "config/webshare_ip.txt"
-    # deepcode ignore PT: Safe default provided, input sanitized
+    # Security: Path traversal prevented by validation above (lines 51-53)
+    # deepcode ignore PT: Path is validated to not contain ".." or start with "/"
     ip_file = Path(ip_file_raw)
 
     current_ip = _read_url(ip_url).strip()

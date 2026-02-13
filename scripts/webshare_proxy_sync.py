@@ -161,6 +161,8 @@ def main() -> int:
     if ".." in proxies_file_raw or proxies_file_raw.startswith("/"):
         proxies_file_raw = "config/proxies.json"
     # deepcode ignore PT: Safe default provided, input sanitized
+    # Security: Path traversal prevented by validation above (lines 160-162)
+    # deepcode ignore PT: Path is validated to not contain ".." or start with "/"
     proxies_file = Path(proxies_file_raw)
 
     profiles = _list_profiles(cache_dir)
