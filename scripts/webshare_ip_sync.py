@@ -21,7 +21,7 @@ from urllib.request import Request, urlopen
 
 def _read_url(url: str, headers: dict[str, str] | None = None) -> str:
     req = Request(url, headers=headers or {})
-    with urlopen(req, timeout=10) as resp:  # noqa: S310
+    with urlopen(req, timeout=10) as resp:
         return resp.read().decode("utf-8", "replace")
 
 
@@ -32,7 +32,7 @@ def _api_request(method: str, url: str, token: str, data: dict[str, Any] | None 
         payload = json.dumps(data).encode("utf-8")
         headers["Content-Type"] = "application/json"
     req = Request(url, method=method, headers=headers, data=payload)
-    with urlopen(req, timeout=15) as resp:  # noqa: S310
+    with urlopen(req, timeout=15) as resp:
         body = resp.read().decode("utf-8", "replace")
     return json.loads(body) if body else {}
 

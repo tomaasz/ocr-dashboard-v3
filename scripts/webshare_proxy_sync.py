@@ -28,7 +28,7 @@ from urllib.request import Request, urlopen
 
 def _read_url(url: str, headers: dict[str, str] | None = None) -> str:
     req = Request(url, headers=headers or {})
-    with urlopen(req, timeout=20) as resp:  # noqa: S310
+    with urlopen(req, timeout=20) as resp:
         return resp.read().decode("utf-8", "replace")
 
 
@@ -63,7 +63,7 @@ def _load_existing_profiles(proxies_file: Path) -> list[str]:
         return []
     proxies = data.get("proxies") if isinstance(data, dict) else None
     if isinstance(proxies, dict):
-        return sorted({str(k) for k in proxies.keys() if k})
+        return sorted({str(k) for k in proxies if k})
     return []
 
 

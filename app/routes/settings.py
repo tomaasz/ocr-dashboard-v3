@@ -9,7 +9,9 @@ import json
 import os
 import re
 import shlex
+import signal
 import subprocess
+import time
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -25,13 +27,22 @@ from ..config import (
     X11_DISPLAY_CONFIG_FILE,
 )
 from ..models.requests import CleanupRequest
+from ..services import process as process_service
 from ..services.cleanup import DEFAULT_CLEANUP_TARGETS, cleanup_folders
 from ..services.remote_config import get_effective_remote_config, save_remote_config
+from ..services.source_resolver import get_resolver
+from ..utils.activity_logger import ActivityLogger
+from ..utils.db import execute_single
 from ..utils.security import (
     validate_hostname,
     validate_ssh_opts,
     validate_username,
 )
+
+# Constants for path validation
+_MIN_DRIVE_PREFIX_LEN = 2
+_WINDOWS_DRIVE_ROOT_LEN = 3
+_WINDOWS_DRIVE_LETTER_LEN = 2
 
 router = APIRouter(prefix="/api", tags=["settings"])
 
@@ -631,8 +642,6 @@ def update_remote_repo(payload: dict = Body(default_factory=dict)):
 def _get_source_root() -> str:
     """Get the configured SOURCE_ROOT path."""
     try:
-        from ..services.source_resolver import get_resolver
-
         return str(get_resolver().source_root)
     except Exception:
         return os.environ.get("OCR_SOURCE_ROOT", "/data/sources")
@@ -659,8 +668,6 @@ def get_default_source_path():
 
     # 1. Próba pobrania z bazy danych (pierwszy katalog wymagający OCR)
     try:
-        from ..utils.db import execute_single
-
         query = """
             SELECT source_path
             FROM v_source_path_stats
@@ -710,8 +717,6 @@ def get_source_info(path: str = ""):
         }
 
     try:
-        from ..services.source_resolver import get_resolver
-
         resolver = get_resolver()
         info = resolver.verify(path.strip())
 
@@ -747,10 +752,6 @@ _RESTART_WORKER_PATTERNS = [
 
 def _stop_workers_best_effort() -> None:
     """Terminate OCR worker processes and related browser helpers."""
-    import time
-
-    from ..services import process as process_service
-
     pids = process_service.find_pids_by_patterns(_RESTART_WORKER_PATTERNS)
     for pid in pids:
         process_service.terminate_pid(pid)
@@ -759,8 +760,6 @@ def _stop_workers_best_effort() -> None:
 
 def _restart_web_process(project_root: Path, start_script: Path, restart_log: Path) -> None:
     """Restart only the web server process."""
-    import signal
-
     under_systemd = bool(os.environ.get("INVOCATION_ID"))
     under_wrapper = os.environ.get("OCR_RUNNING_IN_WRAPPER") == "1"
 
@@ -783,8 +782,6 @@ def _restart_web_process(project_root: Path, start_script: Path, restart_log: Pa
 
     os.kill(os.getpid(), signal.SIGTERM)
     try:
-        import time
-
         time.sleep(3)
         os.kill(os.getpid(), signal.SIGKILL)
     except Exception:
@@ -793,8 +790,6 @@ def _restart_web_process(project_root: Path, start_script: Path, restart_log: Pa
 
 def _delayed_restart(action: Callable[[], None]) -> None:
     """Wait briefly then execute the restart action."""
-    import time
-
     time.sleep(0.5)
     action()
 
@@ -830,15 +825,11 @@ def restart_application(
         raise HTTPException(status_code=400, detail="Cleanup is only supported for scope=all.")
 
     # Best-effort activity logging
-    try:
-        from ocr_engine.utils.activity_logger import ActivityLogger
-
+    with contextlib.suppress(Exception):
         ActivityLogger().log_restart(
             component="web_dashboard",
             reason=f"Manual restart triggered via dashboard API (scope: {scope})",
         )
-    except Exception:
-        pass
 
     project_root = Path(__file__).parents[2]
     start_script = project_root / "scripts" / "start_web.sh"
@@ -1106,8 +1097,7 @@ def run_webshare_sync():
         result = subprocess.run(
             [str(script_path)],
             env=env,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             text=True,
             check=False,
             # Security: allow_safe_shell=False equivalent (list args)
@@ -1147,7 +1137,7 @@ def _parse_ls_entries(ls_output: str) -> list[dict]:
         if name in (".", ".."):
             continue
         perms = parts[0]
-        is_dir = perms.startswith("d") or perms.startswith("l")
+        is_dir = perms.startswith(("d", "l"))
         entries.append({"name": name, "is_dir": is_dir})
     entries.sort(key=lambda x: (not x["is_dir"], x["name"].lower()))
     return entries
@@ -1183,11 +1173,11 @@ def _compute_parent_path(path: str, os_type: str) -> str | None:
         # Normalize to backslashes for Windows
         normalized = path.replace("/", "\\")
         # Drive root like C:\ has no parent
-        if len(normalized) <= 3 and normalized[1:2] == ":":
+        if len(normalized) <= _WINDOWS_DRIVE_ROOT_LEN and normalized[1:2] == ":":
             return None
         parent = normalized.rstrip("\\").rsplit("\\", 1)[0]
         # Ensure drive root keeps trailing backslash: C:
-        if len(parent) == 2 and parent[1] == ":":
+        if len(parent) == _WINDOWS_DRIVE_LETTER_LEN and parent[1] == ":":
             parent += "\\"
         return parent
     # Linux/Mac
