@@ -6036,7 +6036,7 @@
                 const pid = proc.pid ? `#${proc.pid}` : "";
                 return `
                   <div class="flex justify-between" style="font-size: 11px; margin-top: 2px">
-                    <span>${name} <span class="text-secondary">${pid}</span></span>
+                    <span>${escapeHtml(name)} <span class="text-secondary">${escapeHtml(pid)}</span></span>
                     <span>${metric.toFixed(1)}% ${metricLabel}</span>
                   </div>
                 `;
@@ -6050,8 +6050,8 @@
             <div style="margin-bottom: var(--spacing-lg); padding-bottom: var(--spacing-md); border-bottom: 1px solid var(--color-border)">
               <div class="flex justify-between mb-sm">
                 <div>
-                  <span style="font-weight: 600; font-size: 14px">${host.name}</span>
-                  <span class="text-secondary" style="font-size: 11px; margin-left: 8px">${host.host}</span>
+                  <span style="font-weight: 600; font-size: 14px">${escapeHtml(host.name)}</span>
+                  <span class="text-secondary" style="font-size: 11px; margin-left: 8px">${escapeHtml(host.host)}</span>
                 </div>
                 <div class="host-load-meta">
                   <span class="font-bold">${host.worker_count}/${host.max_recommended}</span>
@@ -9836,16 +9836,16 @@
                       const data = JSON.parse(event.data);
                       switch(data.type) {
                           case 'status':
-                              logElement.innerHTML += `\n<span style="color: #2196F3; font-weight: bold;">${data.message}</span>\n`;
+                              logElement.innerHTML += `\n<span style="color: #2196F3; font-weight: bold;">${escapeHtml(data.message)}</span>\n`;
                               break;
                           case 'log':
-                              logElement.innerHTML += `${data.message}\n`;
+                              logElement.innerHTML += `${escapeHtml(data.message)}\n`;
                               break;
                           case 'warning':
-                              logElement.innerHTML += `<span style="color: #FF9800;">⚠️ ${data.message}</span>\n`;
+                              logElement.innerHTML += `<span style="color: #FF9800;">⚠️ ${escapeHtml(data.message)}</span>\n`;
                               break;
                           case 'error':
-                              logElement.innerHTML += `<span style="color: #f44336; font-weight: bold;">❌ ${data.message}</span>\n`;
+                              logElement.innerHTML += `<span style="color: #f44336; font-weight: bold;">❌ ${escapeHtml(data.message)}</span>\n`;
                               toastHost('error', 'Błąd', data.message, hostAddress);
                               saveBtn.disabled = false;
                               saveBtn.textContent = '🚀 Deployuj & Zapisz';
@@ -9854,7 +9854,7 @@
                           case 'complete':
                               hasCompleted = true;
                               if (data.success) {
-                                  logElement.innerHTML += `\n<span style="color: #4CAF50; font-weight: bold; font-size: 1.1em;">${data.message}</span>\n`;
+                                  logElement.innerHTML += `\n<span style="color: #4CAF50; font-weight: bold; font-size: 1.1em;">${escapeHtml(data.message)}</span>\n`;
                                   toastHost('success', 'Sukces', 'Deployment zakończony pomyślnie!', hostAddress);
 
                                   // Auto-fill paths for the deployed host
@@ -9884,10 +9884,10 @@
                                   const existingIndex = remoteHostsData.findIndex(h => h.host === hostAddress);
                                   if (existingIndex === -1) {
                                       remoteHostsData.push(host);
-                                      logElement.innerHTML += `<span style="color: #2196F3;">\n📋 Dodano "${host.name || hostAddress}" do listy hostów</span>\n`;
+                                      logElement.innerHTML += `<span style="color: #2196F3;">\n📋 Dodano "${escapeHtml(host.name || hostAddress)}" do listy hostów</span>\n`;
                                   } else {
                                       remoteHostsData[existingIndex] = host;
-                                      logElement.innerHTML += `<span style="color: #888;">\nℹ️ Zaktualizowano konfigurację "${host.name || hostAddress}"</span>\n`;
+                                      logElement.innerHTML += `<span style="color: #888;">\nℹ️ Zaktualizowano konfigurację "${escapeHtml(host.name || hostAddress)}"</span>\n`;
                                   }
 
                                   saveRemoteHosts().then(() => {
@@ -9899,12 +9899,12 @@
                                           saveBtn.textContent = '🚀 Deployuj & Zapisz';
                                       }, 3000);
                                   }).catch(err => {
-                                      logElement.innerHTML += `<span style="color: #FF9800;">⚠️ Nie udało się zapisać: ${err.message}</span>\n`;
+                                      logElement.innerHTML += `<span style="color: #FF9800;">⚠️ Nie udało się zapisać: ${escapeHtml(err.message)}</span>\n`;
                                       saveBtn.disabled = false;
                                       saveBtn.textContent = '🚀 Deployuj & Zapisz';
                                   });
                               } else {
-                                  logElement.innerHTML += `\n<span style="color: #f44336; font-weight: bold;">${data.message}</span>\n`;
+                                  logElement.innerHTML += `\n<span style="color: #f44336; font-weight: bold;">${escapeHtml(data.message)}</span>\n`;
                                   toastHost('error', 'Błąd', 'Deployment nie powiódł się', hostAddress);
                                   saveBtn.disabled = false;
                                   saveBtn.textContent = '🚀 Deployuj & Zapisz';
@@ -9929,7 +9929,7 @@
                   eventSource.close();
               };
           } catch (error) {
-              logElement.innerHTML += `\n<span style="color: #f44336;">❌ BŁĄD POŁĄCZENIA: ${error.message}</span>\n`;
+              logElement.innerHTML += `\n<span style="color: #f44336;">❌ BŁĄD POŁĄCZENIA: ${escapeHtml(error.message)}</span>\n`;
               toastHost('error', 'Błąd', `Błąd: ${error.message}`, hostAddress);
               saveBtn.disabled = false;
               saveBtn.textContent = '🚀 Deployuj & Zapisz';
@@ -11093,17 +11093,17 @@
               const result = await response.json();
               
               if (result.success) {
-                  logDiv.innerHTML += `<span style="color: #4CAF50;">✅ ${result.message}</span>\n`;
+                  logDiv.innerHTML += `<span style="color: #4CAF50;">✅ ${escapeHtml(result.message)}</span>\n`;
                   if (result.details) {
-                      logDiv.innerHTML += `<span style="color: #888;">${result.details}</span>\n`;
+                      logDiv.innerHTML += `<span style="color: #888;">${escapeHtml(result.details)}</span>\n`;
                   }
                   toastHost('success', 'Sukces', 'Profil zsynchronizowany!', targetHost);
               } else {
-                  logDiv.innerHTML += `<span style="color: #f44336;">❌ ${result.detail || result.message || 'Błąd synchronizacji'}</span>\n`;
+                  logDiv.innerHTML += `<span style="color: #f44336;">❌ ${escapeHtml(result.detail || result.message || 'Błąd synchronizacji')}</span>\n`;
                   toastHost('error', 'Błąd', result.detail || 'Synchronizacja nie powiodła się', targetHost);
               }
           } catch (error) {
-              logDiv.innerHTML += `<span style="color: #f44336;">❌ Błąd połączenia: ${error.message}</span>\n`;
+              logDiv.innerHTML += `<span style="color: #f44336;">❌ Błąd połączenia: ${escapeHtml(error.message)}</span>\n`;
               toastHost('error', 'Błąd', `Błąd: ${error.message}`, targetHost);
           } finally {
               btn.disabled = false;

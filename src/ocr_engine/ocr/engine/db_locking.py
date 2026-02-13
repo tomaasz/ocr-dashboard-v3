@@ -706,7 +706,7 @@ class DbLockingManager:
                         sql.SQL(", ").join([sql.Placeholder()] * len(insert_cols)),
                     )
                     # deepcode ignore Sqli: Using parameterized query with sql.Placeholder() - fully protected against SQL injection
-                    cur.execute(query, [values[c] for c in insert_cols])
+                    cur.execute(query, [values[c] for c in insert_cols])  # nosec: B608
 
                 # UPDATE
                 update_cols = [

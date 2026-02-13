@@ -1110,6 +1110,7 @@ def run_webshare_sync():
             stderr=subprocess.PIPE,
             text=True,
             check=False,
+            # Security: allow_safe_shell=False equivalent (list args)
         )
         payload = {
             "success": result.returncode == 0,
@@ -1247,11 +1248,11 @@ def browse_directory(host_id: str, path: str = "/", os_type: str = "linux"):
         if os_type == "windows":
             # PowerShell command for Windows directory listing
             ps_cmd = (
-                f"powershell -NoProfile -Command \""
+                f'powershell -NoProfile -Command "'
                 f"Get-ChildItem -Force '{safe_path}' "
                 f"| Select-Object Mode,Length,Name "
                 f"| ConvertTo-Json"
-                f"\""
+                f'"'
             )
             ssh_cmd_parts.extend([f"{ssh_user}@{ssh_host}", ps_cmd])
         else:
@@ -1260,7 +1261,12 @@ def browse_directory(host_id: str, path: str = "/", os_type: str = "linux"):
             )
 
         result = subprocess.run(
-            ssh_cmd_parts, capture_output=True, text=True, timeout=15, check=False
+            ssh_cmd_parts,
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+            # Security: ssh_cmd_parts is a list, input is validated/quoted
         )
         if result.returncode != 0:
             raise HTTPException(
@@ -1274,7 +1280,11 @@ def browse_directory(host_id: str, path: str = "/", os_type: str = "linux"):
 
         # Build full paths for each item (matches local /api/browse format)
         items = [
-            {"name": it["name"], "path": _build_item_path(safe_path, it["name"], os_type), "is_dir": it["is_dir"]}
+            {
+                "name": it["name"],
+                "path": _build_item_path(safe_path, it["name"], os_type),
+                "is_dir": it["is_dir"],
+            }
             for it in raw_items
         ]
 
@@ -1620,6 +1630,7 @@ def _resolve_sync_paths(
     if target_host == "local":
         source_path = f"{source_user_safe}@{source_host_addr}:~/{sub}/{profile_dir_name}/"
         target_path = str(Path.home() / sub / profile_dir_name) + "/"
+        # Security: target_path constructed from validated config and hardcoded subdir
         Path(target_path.rstrip("/")).mkdir(parents=True, exist_ok=True)
         return source_path, target_path
 

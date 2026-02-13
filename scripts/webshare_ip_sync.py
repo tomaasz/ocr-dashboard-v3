@@ -47,7 +47,11 @@ def main() -> int:
         "WEBSHARE_API_BASE", "https://proxy.webshare.io/api/v2/proxy/ipauthorization/"
     ).strip()
     ip_url = os.environ.get("WEBSHARE_WHATSMYIP_URL", "https://ipv4.icanhazip.com").strip()
-    ip_file = Path(os.environ.get("WEBSHARE_IP_FILE", "config/webshare_ip.txt"))
+    ip_file_raw = os.environ.get("WEBSHARE_IP_FILE", "config/webshare_ip.txt").strip()
+    # Prevent path traversal
+    if ".." in ip_file_raw or ip_file_raw.startswith("/"):
+        ip_file_raw = "config/webshare_ip.txt"
+    ip_file = Path(ip_file_raw)
 
     current_ip = _read_url(ip_url).strip()
     if not current_ip:

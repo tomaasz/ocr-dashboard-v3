@@ -67,8 +67,9 @@ def _load_existing_profiles(proxies_file: Path) -> list[str]:
     return []
 
 
-def _get_all_proxies(token: str, mode: str, page_size: int, plan_id: str | None,
-                     country_codes: str | None) -> list[dict[str, Any]]:
+def _get_all_proxies(
+    token: str, mode: str, page_size: int, plan_id: str | None, country_codes: str | None
+) -> list[dict[str, Any]]:
     proxies: list[dict[str, Any]] = []
     page = 1
     while True:
@@ -103,7 +104,9 @@ def _build_proxy_entry(item: dict[str, Any]) -> dict[str, str] | None:
     }
 
 
-def _assign_proxies(profiles: list[str], proxy_entries: list[dict[str, str]]) -> dict[str, dict[str, str]]:
+def _assign_proxies(
+    profiles: list[str], proxy_entries: list[dict[str, str]]
+) -> dict[str, dict[str, str]]:
     if not profiles or not proxy_entries:
         return {}
 
@@ -150,8 +153,14 @@ def main() -> int:
     page_size = int(os.environ.get("WEBSHARE_PAGE_SIZE", "100").strip() or "100")
     min_valid = os.environ.get("WEBSHARE_MIN_VALID", "1").strip() != "0"
 
-    cache_dir = Path(os.environ.get("OCR_CACHE_DIR", str(Path.home() / ".cache" / "ocr-dashboard-v3")))
-    proxies_file = Path(os.environ.get("OCR_PROXIES_FILE", "config/proxies.json"))
+    cache_dir = Path(
+        os.environ.get("OCR_CACHE_DIR", str(Path.home() / ".cache" / "ocr-dashboard-v3"))
+    )
+    proxies_file_raw = os.environ.get("OCR_PROXIES_FILE", "config/proxies.json").strip()
+    # Prevent path traversal
+    if ".." in proxies_file_raw or proxies_file_raw.startswith("/"):
+        proxies_file_raw = "config/proxies.json"
+    proxies_file = Path(proxies_file_raw)
 
     profiles = _list_profiles(cache_dir)
     if not profiles:

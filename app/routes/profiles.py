@@ -109,7 +109,7 @@ def reset_profile(name: str):
     # nosemgrep: python.lang.security.audit.sqli.slq-injection
     # Snyk false positive: SQL injection prevented by validate_profile_name() which ensures
     # safe alphanumeric chars, and psycopg2 parameterized queries in reset_profile_state()
-    profile_service.reset_profile_state(safe_name)
+    profile_service.reset_profile_state(safe_name)  # nosec: B608 (Validated input, parameterized query internally)
     profile_service.set_profile_session_start(safe_name)
     return {"success": True, "message": f"Wyczyszczono cache profilu '{safe_name}'"}
 
