@@ -9,17 +9,37 @@
 5. **User Experience First:** Every decision should prioritize user experience
 6. **Non-Interactive & CI-Aware:** Prefer non-interactive commands. Use `CI=true` for watch-mode tools (tests, linters) to ensure single execution.
 
+## Extension & Skill Integration
+
+Aby zapewnić najwyższą jakość i spójność, Conductor wykorzystuje następujące rozszerzenia:
+
+1. **Linear (`.agent/skills/linear-integration`)**:
+   - Każdy nowy **Track** musi mieć odpowiadający mu projekt/issue w Linear.
+   - Zadania w `plan.md` powinny być synchronizowane ze statusem zgłoszeń w Linear.
+
+2. **Security Analysis (`/security:analyze`)**:
+   - **Obowiązkowe** przy zadaniach modyfikujących: `app/utils/security.py`, `src/ocr_engine/utils/path_security.py`, zapytania SQL, obsługę plików oraz dostęp do NAS.
+   - Przed zakończeniem fazy należy przeprowadzić manualny przegląd pod kątem podatności (SOP Security).
+
+3. **Code Review (`/code-review`)**:
+   - **Obowiązkowe** przed wykonaniem "Phase Completion Verification". Agent musi wywołać `/code-review` dla wszystkich zmian w danej fazie.
+
+4. **Jules (`/jules`)**:
+   - Wykorzystywany do automatycznych aktualizacji zależności (`requirements.txt`) oraz szerokich refaktoryzacji kodu, które wykraczają poza zakres pojedynczego zadania.
+
 ## Task Workflow
 
 All tasks follow a strict lifecycle:
 
 ### Standard Task Workflow
 
-1. **Select Task:** Choose the next available task from `plan.md` in sequential order
+1. **Select Task:** Choose the next available task from `plan.md` in sequential order. Jeśli używasz Linear, upewnij się, że zadanie jest przypisane.
 
-2. **Mark In Progress:** Before beginning work, edit `plan.md` and change the task from `[ ]` to `[~]`
+2. **Mark In Progress:** Before beginning work, edit `plan.md` and change the task from `[ ]` to `[~]`. Zaktualizuj status w Linear na 'In Progress'.
 
-3. **Write Failing Tests (Red Phase):**
+3. **Security Pre-check:** Jeśli zadanie dotyczy obszarów wrażliwych, przeprowadź wstępną analizę bezpieczeństwa.
+
+4. **Write Failing Tests (Red Phase):**
    - Create a new test file for the feature or bug fix.
    - Write one or more unit tests that clearly define the expected behavior and acceptance criteria for the task.
    - **CRITICAL:** Run the tests and confirm that they fail as expected. This is the "Red" phase of TDD. Do not proceed until you have failing tests.
@@ -72,7 +92,9 @@ All tasks follow a strict lifecycle:
 
 1.  **Announce Protocol Start:** Inform the user that the phase is complete and the verification and checkpointing protocol has begun.
 
-2.  **Ensure Test Coverage for Phase Changes:**
+2.  **Execute Code Review:** Wywołaj polecenie `/code-review`, aby przeanalizować wszystkie zmiany wprowadzone w tej fazie przed ich ostatecznym zatwierdzeniem.
+
+3.  **Ensure Test Coverage for Phase Changes:**
     -   **Step 2.1: Determine Phase Scope:** To identify the files changed in this phase, you must first find the starting point. Read `plan.md` to find the Git commit SHA of the *previous* phase's checkpoint. If no previous checkpoint exists, the scope is all changes since the first commit.
     -   **Step 2.2: List Changed Files:** Execute `git diff --name-only <previous_checkpoint_sha> HEAD` to get a precise list of all files modified during this phase.
     -   **Step 2.3: Verify and Create Tests:** For each file in the list:
