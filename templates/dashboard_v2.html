@@ -8212,8 +8212,8 @@
                 statusEl.innerHTML = `<span style="color: var(--color-success);">✅ OK — ${count} plików obrazów</span>` +
                     (count === 0 ? ' <span style="color: var(--color-warning);">(Ostrzeżenie: brak obrazów?)</span>' : '');
             } else {
-                // deepcode ignore DOMXSS: error message is escaped if needed, but here usually static from backend or simple string
-                statusEl.innerHTML = `<span style="color: var(--color-error);">❌ ${data.error || 'Nieznany błąd'}</span>`;
+                // deepcode ignore DOMXSS: error message is escaped
+                statusEl.innerHTML = `<span style="color: var(--color-error);">❌ ${escapeHtml(data.error || 'Nieznany błąd')}</span>`;
             }
         } catch (e) {
             statusEl.innerHTML = `<span style="color: var(--color-error);">❌ Błąd połączenia</span>`;
@@ -9337,16 +9337,17 @@
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2 2v1"></path></svg>
                     </button>`;
              
+             // deepcode ignore DOMXSS: host data is escaped
              card.innerHTML = `
                 <div class="host-header">
                     <div class="host-title flex items-center gap-sm">
-                        ${host.name || host.host || 'Unnamed Host'}
+                        ${escapeHtml(host.name || host.host || 'Unnamed Host')}
                         ${roles.join('')}
                     </div>
                 </div>
                 <div class="host-body text-sm text-secondary">
-                    <div>Host: ${host.host || '-'}</div>
-                    <div>User: ${host.user || '-'}</div>
+                    <div>Host: ${escapeHtml(host.host || '-')}</div>
+                    <div>User: ${escapeHtml(host.user || '-')}</div>
                     ${!host.isLocal ? `<div class="flex items-center gap-sm mt-1">
                         <span style="font-weight: 600; font-size: 11px;">Repo:</span>
                         ${repoBadge}

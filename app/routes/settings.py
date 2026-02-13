@@ -6,6 +6,7 @@ Settings and utilities API endpoints.
 import concurrent.futures
 import contextlib
 import json
+import logging
 import os
 import re
 import shlex
@@ -17,6 +18,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Body, HTTPException
+from starlette.responses import StreamingResponse
 
 from ..config import (
     AUTO_RESTART_CONFIG_FILE,
@@ -24,12 +26,15 @@ from ..config import (
     CACHE_DIR,
     PENDING_CLEANUP_FILE,
     UPDATE_COUNTS_CONFIG_FILE,
+    UPDATE_COUNTS_ON_NEW_PATHS,
+    UPDATE_COUNTS_POLL_SEC,
     X11_DISPLAY_CONFIG_FILE,
 )
 from ..models.requests import CleanupRequest
 from ..services import process as process_service
 from ..services.cleanup import DEFAULT_CLEANUP_TARGETS, cleanup_folders
 from ..services.remote_config import get_effective_remote_config, save_remote_config
+from ..services.remote_deployment import RemoteDeploymentService
 from ..services.source_resolver import get_resolver
 from ..utils.activity_logger import ActivityLogger
 from ..utils.db import execute_single
@@ -814,7 +819,6 @@ def restart_application(
         scope: Restart scope - "all" (default), "web", or "workers"
         cleanup: If true, defer a cleanup after restart (scope must be "all")
     """
-    import time
 
     valid_scopes = {"all", "web", "workers"}
     if scope not in valid_scopes:
@@ -980,7 +984,6 @@ def set_x11_display(display: str):
 @router.get("/settings/update-counts")
 def get_update_counts_settings():
     """Get update counts watcher settings."""
-    from ..config import UPDATE_COUNTS_ON_NEW_PATHS, UPDATE_COUNTS_POLL_SEC
 
     data: dict = {}
     try:
@@ -1319,7 +1322,6 @@ def deploy_to_remote_host(payload: dict = Body(default_factory=dict)):
             - nas_password: NAS password
             - install_postgres: yes/no
     """
-    from ..services.remote_deployment import RemoteDeploymentService
 
     os_type = payload.get("os_type", "").strip().lower()
     host = payload.get("host", "").strip()
@@ -1361,7 +1363,6 @@ def deploy_to_remote_host(payload: dict = Body(default_factory=dict)):
 @router.get("/settings/remote-deployment/available-scripts")
 def get_available_deployment_scripts():
     """Get list of available deployment scripts."""
-    from ..services.remote_deployment import RemoteDeploymentService
 
     scripts = []
     for os_type in ["ubuntu", "arch", "windows"]:
@@ -1505,11 +1506,6 @@ def deploy_to_remote_host_stream(
 
     Returns Server-Sent Events with real-time deployment logs.
     """
-    import logging
-
-    from starlette.responses import StreamingResponse
-
-    from ..services.remote_deployment import RemoteDeploymentService
 
     logger = logging.getLogger(__name__)
 
@@ -1648,7 +1644,6 @@ def sync_profile_to_host(payload: dict = Body(default_factory=dict)):
     Copies profile data from source host to target host using rsync.
     Can copy from local to remote, remote to local, or remote to remote.
     """
-    import logging
 
     logger = logging.getLogger(__name__)
 
