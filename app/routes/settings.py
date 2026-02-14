@@ -9,8 +9,8 @@ import json
 import logging
 import os
 import re
-import shutil
 import shlex
+import shutil
 import signal
 import subprocess
 import sys
@@ -406,9 +406,7 @@ def _win_test_repo_cmd(repo_dir: str) -> str:
 
 def _win_test_dir_cmd(repo_dir: str) -> str:
     repo_ps = _ps_quote(repo_dir)
-    script = (
-        f"$p = {repo_ps}; if (Test-Path -Path $p -PathType Container) {{ exit 0 }} else {{ exit 1 }}"
-    )
+    script = f"$p = {repo_ps}; if (Test-Path -Path $p -PathType Container) {{ exit 0 }} else {{ exit 1 }}"
     return _PS_PREFIX + _ps_quote(script)
 
 
@@ -603,14 +601,34 @@ def _update_repo(host: dict) -> dict:
     if _is_windows_repo(host, repo_dir):
         pull_cmd = _win_git_cmd(repo_dir, "pull --ff-only")
     else:
+        # Auto-fix orphaned repos: if no upstream is set, try to set it
+        upstream_cmd = _bash_cmd(
+            f"cd {shlex.quote(repo_dir)} && "
+            "git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null || echo NO_UPSTREAM"
+        )
+        up_result, up_auth = _run_ssh_command(host, upstream_cmd, timeout=10)
+        auth.extend(up_auth)
+        if "NO_UPSTREAM" in (up_result.stdout or ""):
+            fix_cmd = _bash_cmd(
+                f"cd {shlex.quote(repo_dir)} && "
+                "git fetch origin 2>/dev/null; "
+                "if git rev-parse --verify origin/main >/dev/null 2>&1; then "
+                "  git checkout -B main origin/main; "
+                "elif git rev-parse --verify origin/master >/dev/null 2>&1; then "
+                "  git checkout -B master origin/master; "
+                "fi"
+            )
+            _fix_result, fix_auth = _run_ssh_command(host, fix_cmd, timeout=30)
+            auth.extend(fix_auth)
+
         pull_cmd = _bash_cmd(f"cd {shlex.quote(repo_dir)} && git pull --ff-only")
     pull, auth_urls = _run_ssh_command(host, pull_cmd, timeout=60)
     auth.extend(auth_urls)
     if pull.returncode != 0:
         return _result_with_auth(
             {
-            "status": "error",
-            "message": (pull.stderr or pull.stdout).strip() or "git pull failed",
+                "status": "error",
+                "message": (pull.stderr or pull.stdout).strip() or "git pull failed",
             },
             auth,
         )
@@ -1344,7 +1362,9 @@ def browse_directory(
                 str(host_cfg.get("host") or host_cfg.get("address") or "").strip()
             )
             ssh_opts = validate_ssh_opts(
-                str(host_cfg.get("ssh") or host_cfg.get("sshOpts") or host_cfg.get("ssh_opts") or "")
+                str(
+                    host_cfg.get("ssh") or host_cfg.get("sshOpts") or host_cfg.get("ssh_opts") or ""
+                )
             )
         else:
             ssh_user = validate_username(str(user or "").strip())
@@ -1515,7 +1535,7 @@ def test_remote_host(payload: dict = Body(default_factory=dict)):
         checks: dict[str, dict[str, object]] = {}
         ping_cmd = "echo OK"
         if os_type == "windows":
-            ping_cmd = "powershell -NoProfile -Command \"Write-Output OK\""
+            ping_cmd = 'powershell -NoProfile -Command "Write-Output OK"'
         ping_result = _run_ssh_check(user, host, ssh_opts, ping_cmd)
         ping_ok = ping_result.returncode == 0 and "OK" in (ping_result.stdout or "")
         checks["ssh"] = {

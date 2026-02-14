@@ -255,7 +255,20 @@ clone_repository() {
         if [[ "$GITHUB_REPO" != "SKIP" && "$GITHUB_REPO" != "LOCAL" && -n "$GITHUB_REPO" ]]; then
             git remote add origin "$GITHUB_REPO" 2>/dev/null || git remote set-url origin "$GITHUB_REPO"
             log_success "Git initialized with remote: $GITHUB_REPO"
-            log_info "Run 'git fetch origin && git reset --hard origin/main' to sync with remote"
+            # Auto-fetch and checkout the correct branch
+            if GIT_TERMINAL_PROMPT=0 timeout 30 git fetch origin 2>/dev/null; then
+                if git rev-parse --verify origin/main >/dev/null 2>&1; then
+                    git checkout -B main origin/main
+                    log_success "Checked out branch main from origin"
+                elif git rev-parse --verify origin/master >/dev/null 2>&1; then
+                    git checkout -B master origin/master
+                    log_success "Checked out branch master from origin"
+                else
+                    log_warning "Could not find main or master branch on origin"
+                fi
+            else
+                log_warning "Git fetch failed or timed out - run manually: git fetch origin && git checkout main"
+            fi
         else
             log_success "Git initialized (no remote configured)"
         fi
@@ -301,6 +314,11 @@ setup_python_environment() {
         log_warning "Playwright not installed yet - will be installed after file sync"
     fi
     set -e  # Re-enable errexit
+    
+    # Create profile cache directory for browser profiles
+    local profile_dir="$HOME/.cache/ocr-dashboard-v3"
+    mkdir -p "$profile_dir"
+    log_success "Profile cache directory created: $profile_dir"
     
     log_success "Python environment configured"
 }
