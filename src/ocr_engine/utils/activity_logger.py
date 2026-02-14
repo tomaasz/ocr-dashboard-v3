@@ -216,7 +216,7 @@ class ActivityLogger:
                         psycopg2.extras.Json(metadata or {}),
                     ),
                 )
-                db_id = cur.fetchone()[0]
+                cur.fetchone()
 
             conn.commit()
             return event_id
@@ -270,7 +270,7 @@ class ActivityLogger:
         cache_key = f"{component}:{profile_name or 'default'}"
         self._start_times[cache_key] = time.time()
 
-        event_id = self.log_event(
+        return self.log_event(
             event_type=event_type,
             component=component,
             profile_name=profile_name,
@@ -280,8 +280,6 @@ class ActivityLogger:
             configuration=configuration,
             metadata=kwargs,
         )
-
-        return event_id
 
     def log_stop(
         self,
@@ -377,15 +375,15 @@ class ActivityLogger:
             log_dir = Path.home() / ".cache" / "ocr-dashboard-v3" / "activity_logs"
             log_dir.mkdir(parents=True, exist_ok=True)
 
-            log_file = log_dir / f"activity_{datetime.now().strftime('%Y%m%d')}.log"
+            log_file = log_dir / f"activity_{datetime.now().astimezone().strftime('%Y%m%d')}.log"
 
-            timestamp = datetime.now().isoformat()
+            timestamp = datetime.now().astimezone().isoformat()
             profile_str = f" profile={profile_name}" if profile_name else ""
             log_line = (
                 f"{timestamp} {event_type} component={component}{profile_str} reason={reason}\n"
             )
 
-            with open(log_file, "a") as f:
+            with log_file.open("a") as f:
                 f.write(log_line)
         except Exception as e:
             # S110: Log error instead of silent fail

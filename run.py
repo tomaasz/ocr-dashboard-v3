@@ -1,9 +1,16 @@
 import os
 import sys
 import time
+from pathlib import Path
+
+# Only Gemini engine is supported.
+from ocr_engine.ocr.engine.gemini_engine import GeminiEngine
+
+# Constant for restart signal
+EXIT_CODE_RESTART = 100
 
 # Automatyczne dodanie src do PYTHONPATH, żebyś nie musiał pamiętać o 'export'
-sys.path.append(os.path.join(os.getcwd(), "src"))
+sys.path.append(str(Path.cwd() / "src"))
 
 
 def main():
@@ -22,9 +29,6 @@ def main():
     print(f" Profil:        {profile_suffix}")
     print("-" * 60)
 
-    # Only Gemini engine is supported.
-    from ocr_engine.ocr.engine.gemini_engine import GeminiEngine
-
     # Run loop for auto-restart support
     while True:
         engine = GeminiEngine(
@@ -35,7 +39,7 @@ def main():
         )
         exit_code = engine.run()
 
-        if exit_code == 100:
+        if exit_code == EXIT_CODE_RESTART:
             print("🔄 [System] Restart signal received (browser crash). Restarting engine in 5s...")
             time.sleep(5)
             continue

@@ -10141,7 +10141,7 @@
               const eventSource = new EventSource(`/api/settings/remote-deployment/deploy-stream?${params.toString()}`);
               let hasCompleted = false;
 
-              eventSource.onmessage = function(event) {
+              eventSource.onmessage = async function(event) {
                   try {
                       const data = JSON.parse(event.data);
                       switch(data.type) {
