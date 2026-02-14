@@ -40,9 +40,12 @@ _MENU_ITEM_RE = re.compile(r"(prześlij|upload|wybierz|select|obraz|image|plik|f
 
 # Regex for model detection
 _MODEL_BUTTON_RE = re.compile(
-    r"(Szybki|Fast|Flash|Pro|1\.5\s*Pro|2\.0\s*Pro|Thinking|Myślący)", re.IGNORECASE
+    r"(Szybki|Fast|Flash|Pro|1\.5\s*Pro|2\.0\s*Pro|Thinking|Myślący|Advanced|Zaawansowany)",
+    re.IGNORECASE,
 )
-_PRO_MODEL_RE = re.compile(r"(?:\bPro\b|1\.5\s*Pro|2\.0\s*Pro)", re.IGNORECASE)
+_PRO_MODEL_RE = re.compile(
+    r"(?:\bPro\b|1\.5\s*Pro|2\.0\s*Pro|Advanced|Zaawansowany)", re.IGNORECASE
+)
 _FAST_MODEL_RE = re.compile(r"(Szybki|Fast|Flash|1\.5 Flash|2\.0 Flash)", re.IGNORECASE)
 
 
