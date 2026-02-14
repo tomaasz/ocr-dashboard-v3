@@ -198,11 +198,10 @@ class GeminiBrowserController:
             "--enable-features=NetworkService,NetworkServiceInProcess",
             "--disable-session-crashed-bubble",
             # Performance optimizations - disable heavy features
+            # NOTE: Avoid disabling sync/background-networking as they may prevent session persistence
             "--disable-features=TranslateUI",  # Disable Google Translate
             "--disable-features=Translate",  # Disable translation service
             "--disable-spell-checking",  # Disable spell checker
-            "--disable-sync",  # Disable Chrome sync
-            "--disable-background-networking",  # Disable background network requests
             "--disable-background-timer-throttling",  # Better performance
             "--disable-backgrounding-occluded-windows",  # Don't throttle hidden windows
             "--disable-breakpad",  # Disable crash reporting
