@@ -321,7 +321,12 @@ class ActivityLogger:
             duration_seconds = int(time.time() - self._start_times[cache_key])
             del self._start_times[cache_key]
 
-        event_id = self.log_event(
+        # Pass the original start event_id in metadata for linking start↔stop
+        stop_metadata = dict(kwargs)
+        if event_id:
+            stop_metadata["start_event_id"] = event_id
+
+        stop_event_id = self.log_event(
             event_type=event_type,
             component=component,
             profile_name=profile_name,
@@ -331,10 +336,10 @@ class ActivityLogger:
             exit_signal=exit_signal,
             duration_seconds=duration_seconds,
             error_message=error_message,
-            metadata=kwargs,
+            metadata=stop_metadata,
         )
 
-        return event_id is not None
+        return stop_event_id is not None
 
     def log_restart(
         self,
