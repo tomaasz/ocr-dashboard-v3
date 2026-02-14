@@ -35,7 +35,6 @@ def main():
             job_dir=f"jobs/{batch_id}",
             prompt_id="raw_ocr",
             headed=is_headed,
-            profile_name=profile_suffix if profile_suffix != "(domyślny)" else "default",
         )
         exit_code = engine.run()
 
