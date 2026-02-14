@@ -1219,6 +1219,7 @@ class GeminiEngine:
                 # Log PRO limit event for dashboard visibility
                 self.activity_logger.log_event(
                     profile_name=self.active_profile_name,
+                    component="profile_worker_limit",
                     event_type="profile_worker_limit",
                     reason=f"PRO limit detected after send - file: {file_name}",
                 )
@@ -1280,6 +1281,7 @@ class GeminiEngine:
                 # Log non-PRO model event for dashboard visibility
                 self.activity_logger.log_event(
                     profile_name=self.active_profile_name,
+                    component="profile_worker_limit",
                     event_type="profile_worker_limit",
                     reason=f"Non-PRO model used: {final_model} - result discarded",
                 )
