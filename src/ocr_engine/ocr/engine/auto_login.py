@@ -122,22 +122,22 @@ class AutoLogin:
         Raises exception if CAPTCHA not resolved within timeout.
         """
         try:
-            # Common CAPTCHA indicators
             captcha_selectors = [
                 "iframe[src*='recaptcha']",
-                "iframe[src*='captcha']",
-                "[id*='captcha']",
-                "[class*='captcha']",
-                "div:has-text('verify you')",
-                "div:has-text('not a robot')",
-                "div:has-text('Verify it')",
+                "iframe[title*='reCAPTCHA']",
+                "div.g-recaptcha",
             ]
 
             captcha_found = False
             for selector in captcha_selectors:
-                if page.locator(selector).count() > 0:
-                    captcha_found = True
-                    break
+                loc = page.locator(selector).first
+                if loc.count() > 0:
+                    try:
+                        if loc.is_visible(timeout=500):
+                            captcha_found = True
+                            break
+                    except Exception:
+                        continue
 
             if not captcha_found:
                 return False
@@ -159,9 +159,14 @@ class AutoLogin:
                 # Re-check if CAPTCHA is still present
                 still_present = False
                 for selector in captcha_selectors:
-                    if page.locator(selector).count() > 0:
-                        still_present = True
-                        break
+                    loc = page.locator(selector).first
+                    if loc.count() > 0:
+                        try:
+                            if loc.is_visible(timeout=500):
+                                still_present = True
+                                break
+                        except Exception:
+                            continue
 
                 if not still_present:
                     logger.info("✅ [AutoLogin] CAPTCHA resolved! Continuing...")

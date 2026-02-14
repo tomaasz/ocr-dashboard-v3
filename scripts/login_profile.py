@@ -163,20 +163,21 @@ def main():
 
             # Check for CAPTCHA and wait for manual resolution
             def check_for_captcha():
-                """Check if CAPTCHA is present on the page."""
+                """Check if a visible CAPTCHA challenge is present on the page."""
                 try:
-                    # Common CAPTCHA indicators
                     captcha_selectors = [
                         "iframe[src*='recaptcha']",
-                        "iframe[src*='captcha']",
-                        "[id*='captcha']",
-                        "[class*='captcha']",
-                        "div:has-text('verify you')",
-                        "div:has-text('not a robot')",
+                        "iframe[title*='reCAPTCHA']",
+                        "div.g-recaptcha",
                     ]
                     for selector in captcha_selectors:
-                        if page.locator(selector).count() > 0:
-                            return True
+                        loc = page.locator(selector).first
+                        if loc.count() > 0:
+                            try:
+                                if loc.is_visible(timeout=500):
+                                    return True
+                            except Exception:
+                                continue
                     return False
                 except Exception:
                     return False
@@ -189,35 +190,31 @@ def main():
                 logger.info("Waiting for CAPTCHA to be resolved...")
                 logger.info("=" * 60)
 
-                # Wait for CAPTCHA to disappear (max 5 minutes)
-                max_wait = 300  # 5 minutes
+                max_wait = 300
                 waited = 0
                 while check_for_captcha() and waited < max_wait:
                     time.sleep(5)
                     waited += 5
-                    if waited % 30 == 0:  # Log every 30 seconds
+                    if waited % 30 == 0:
                         logger.info(f"Still waiting for CAPTCHA... ({waited}s / {max_wait}s)")
 
                 if check_for_captcha():
                     logger.error("❌ CAPTCHA not resolved within 5 minutes. Please try again.")
                 else:
                     logger.info("✅ CAPTCHA resolved! Continuing...")
-                    time.sleep(2)  # Wait a bit for page to stabilize
+                    time.sleep(2)
 
             # Check if already logged in (session from previous login)
             current_url = page.url
             if "gemini.google.com" in current_url and "accounts.google.com" not in current_url:
                 logger.info("✅ Already logged in! Session is valid.")
                 logger.info("Browser will stay open - close it manually when ready.")
-                # Don't return - let browser stay open
-            # If we have credentials, try auto-login
             elif auto_login.can_auto_login():
                 logger.info("Credentials found. Attempting auto-login...")
                 try:
                     if auto_login.perform_login(page):
                         logger.info("✅ Auto-login successful!")
                         logger.info("Browser will stay open - close it manually when ready.")
-                        # Don't return - let browser stay open
                     else:
                         logger.warning("❌ Auto-login failed.")
                 except Exception as e:
