@@ -770,7 +770,7 @@ class DbLockingManager:
             return
 
         created_dt = (
-            created_at if isinstance(created_at, datetime) else datetime.now(tz=datetime.UTC)
+            created_at if isinstance(created_at, datetime) else datetime.now(tz=UTC)
         )
         try:
             with conn.cursor() as cur:
@@ -832,7 +832,7 @@ class DbLockingManager:
             return
 
         created_dt = (
-            created_at if isinstance(created_at, datetime) else datetime.now(tz=datetime.UTC)
+            created_at if isinstance(created_at, datetime) else datetime.now(tz=UTC)
         )
         try:
             with conn.cursor() as cur:
