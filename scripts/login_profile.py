@@ -161,6 +161,49 @@ def main():
                 except Exception as e:
                     logger.warning(f"Consent handling error: {e}")
 
+            # Check for CAPTCHA and wait for manual resolution
+            def check_for_captcha():
+                """Check if CAPTCHA is present on the page."""
+                try:
+                    # Common CAPTCHA indicators
+                    captcha_selectors = [
+                        "iframe[src*='recaptcha']",
+                        "iframe[src*='captcha']",
+                        "[id*='captcha']",
+                        "[class*='captcha']",
+                        "div:has-text('verify you')",
+                        "div:has-text('not a robot')",
+                    ]
+                    for selector in captcha_selectors:
+                        if page.locator(selector).count() > 0:
+                            return True
+                    return False
+                except Exception:
+                    return False
+
+            if check_for_captcha():
+                logger.warning("⚠️ CAPTCHA DETECTED!")
+                logger.info("=" * 60)
+                logger.info("🤖 CAPTCHA must be solved manually")
+                logger.info("Please solve the CAPTCHA in the browser window")
+                logger.info("Waiting for CAPTCHA to be resolved...")
+                logger.info("=" * 60)
+
+                # Wait for CAPTCHA to disappear (max 5 minutes)
+                max_wait = 300  # 5 minutes
+                waited = 0
+                while check_for_captcha() and waited < max_wait:
+                    time.sleep(5)
+                    waited += 5
+                    if waited % 30 == 0:  # Log every 30 seconds
+                        logger.info(f"Still waiting for CAPTCHA... ({waited}s / {max_wait}s)")
+
+                if check_for_captcha():
+                    logger.error("❌ CAPTCHA not resolved within 5 minutes. Please try again.")
+                else:
+                    logger.info("✅ CAPTCHA resolved! Continuing...")
+                    time.sleep(2)  # Wait a bit for page to stabilize
+
             # Check if already logged in (session from previous login)
             current_url = page.url
             if "gemini.google.com" in current_url and "accounts.google.com" not in current_url:
