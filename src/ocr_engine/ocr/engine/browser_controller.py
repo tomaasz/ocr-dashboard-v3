@@ -739,9 +739,26 @@ print("DEBUG_end_chrome_resolve");
                                 self._attempt_auto_login_or_fail(first_page)
                         else:
                             logger.warning(
-                                "❌ [Browser] CAPTCHA auto-solve failed, trying auto-login..."
+                                "❌ [Browser] CAPTCHA auto-solve failed, waiting for manual resolution..."
                             )
-                            self._attempt_auto_login_or_fail(first_page)
+                            # Wait for manual CAPTCHA resolution
+                            if self._wait_for_manual_captcha_resolution(first_page):
+                                logger.info("✅ [Browser] CAPTCHA manually resolved!")
+                                # Re-check if logged in after manual CAPTCHA solve
+                                if not self._is_logged_out(first_page):
+                                    logger.info(
+                                        "✅ [Browser] Session OK after manual CAPTCHA solve!"
+                                    )
+                                else:
+                                    logger.warning(
+                                        "Still logged out after CAPTCHA, trying auto-login..."
+                                    )
+                                    self._attempt_auto_login_or_fail(first_page)
+                            else:
+                                logger.error(
+                                    "❌ [Browser] CAPTCHA not resolved, trying auto-login..."
+                                )
+                                self._attempt_auto_login_or_fail(first_page)
                     else:
                         logger.warning("⚠️ [Browser] SESSION EXPIRED during clean start!")
                         self._attempt_auto_login_or_fail(first_page)
@@ -964,6 +981,56 @@ print("DEBUG_end_chrome_resolve");
         except Exception as e:
             logger.warning(f"[AuthEnsure] Failed to validate session: {e}")
             return False
+
+    def _wait_for_manual_captcha_resolution(self, page: Page, max_wait_minutes: int = 5) -> bool:
+        """
+        Wait for user to manually resolve CAPTCHA.
+
+        Returns True if CAPTCHA disappeared, False if timeout.
+        """
+        logger.warning("⚠️ [Browser] CAPTCHA DETECTED - WAITING FOR MANUAL RESOLUTION")
+        logger.info("=" * 70)
+        logger.info("🤖 Please solve the CAPTCHA in the browser window")
+        logger.info(f"Waiting up to {max_wait_minutes} minutes...")
+        logger.info("=" * 70)
+
+        captcha_selectors = [
+            "iframe[src*='recaptcha']",
+            "iframe[src*='captcha']",
+            "[id*='captcha']",
+            "[class*='captcha']",
+        ]
+
+        max_wait_seconds = max_wait_minutes * 60
+        check_interval = 5  # Check every 5 seconds
+        waited = 0
+
+        while waited < max_wait_seconds:
+            # Check if CAPTCHA still present
+            captcha_present = False
+            for selector in captcha_selectors:
+                try:
+                    if page.locator(selector).count() > 0:
+                        captcha_present = True
+                        break
+                except Exception:
+                    continue
+
+            if not captcha_present:
+                logger.info("✅ [Browser] CAPTCHA resolved!")
+                time.sleep(2)  # Wait for page to stabilize
+                return True
+
+            time.sleep(check_interval)
+            waited += check_interval
+
+            if waited % 30 == 0:  # Log every 30 seconds
+                logger.info(
+                    f"[Browser] Still waiting for CAPTCHA... ({waited}s / {max_wait_seconds}s)"
+                )
+
+        logger.error(f"❌ [Browser] CAPTCHA not resolved within {max_wait_minutes} minutes")
+        return False
 
     def _is_logged_out(self, page: Page) -> bool:
         """Check if page shows login screen or other session issues."""
