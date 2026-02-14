@@ -65,6 +65,7 @@ WEBSHARE_KEYS = {
     "WEBSHARE_COUNTRY_CODES",
     "WEBSHARE_MIN_VALID",
     "WEBSHARE_ASSIGN_SEED",
+    "OCR_PROXY_DISABLED",
 }
 
 
@@ -1074,6 +1075,8 @@ def set_webshare_settings(payload: dict = Body(default_factory=dict)):
     try:
         ENV_FILE.parent.mkdir(parents=True, exist_ok=True)
         _write_env_file(ENV_FILE, updates)
+        for key, value in updates.items():
+            os.environ[key] = value
         return {"success": True}
     except Exception as e:
         handle_server_error(e)

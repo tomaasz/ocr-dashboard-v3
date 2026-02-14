@@ -80,6 +80,15 @@ def _table_identifier(table_str: str):
 
 def _load_proxies_map() -> dict[str, dict[str, str]]:
     """Load per-profile proxy config if present."""
+    proxy_disabled = os.environ.get("OCR_PROXY_DISABLED", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    if proxy_disabled:
+        return {}
+
     path = config.PROXIES_CONFIG_FILE
     env_server = os.environ.get("OCR_PROXY_SERVER", "").strip()
     env_user = os.environ.get("OCR_PROXY_USERNAME", "").strip()

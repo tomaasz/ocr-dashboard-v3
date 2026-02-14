@@ -181,6 +181,32 @@ class TestConfigurationLoaders:
         assert result == {}
 
     @patch("app.routes.dashboard.config")
+    def test_load_proxies_map_global_disable_overrides_all_sources(self, mock_config):
+        """Should return no proxies when global proxy disable is enabled."""
+        proxy_data = {
+            "proxies": {
+                "profile1": {"server": "proxy1.example.com:8080"},
+                "default": {"server": "proxy.example.com:8080"},
+            }
+        }
+        mock_path = Mock()
+        mock_path.exists.return_value = True
+        mock_path.read_text.return_value = json.dumps(proxy_data)
+        mock_config.PROXIES_CONFIG_FILE = mock_path
+
+        env_vars = {
+            "OCR_PROXY_DISABLED": "1",
+            "OCR_PROXY_SERVER": "env-proxy.example.com:8080",
+            "OCR_PROXY_USERNAME": "user123",
+            "OCR_PROXY_PASSWORD": "pass123",
+        }
+
+        with patch.dict(os.environ, env_vars, clear=True):
+            result = _load_proxies_map()
+
+        assert result == {}
+
+    @patch("app.routes.dashboard.config")
     def test_load_proxies_map_invalid_json(self, mock_config):
         """Should handle invalid JSON gracefully."""
         mock_path = Mock()

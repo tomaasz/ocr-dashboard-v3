@@ -145,7 +145,7 @@ def sync_folder_to_db(conn, source_path: str, entries: list) -> int:
 
 def get_known_source_paths(conn) -> list[str]:
     """Get all unique source_paths from OCR table that need indexing."""
-    table = os.environ.get("OCR_PG_TABLE", "public.ocr_results")
+    table = os.environ.get("OCR_PG_TABLE", "public.ocr_raw_texts")
     try:
         with conn.cursor() as cur:
             # Get folders from OCR table that exist in filesystem
@@ -165,7 +165,7 @@ def get_known_source_paths(conn) -> list[str]:
 
 def get_folders_needing_update(conn, max_age_minutes: int = 30) -> list[str]:
     """Get folders that haven't been updated recently."""
-    table = os.environ.get("OCR_PG_TABLE", "public.ocr_results")
+    table = os.environ.get("OCR_PG_TABLE", "public.ocr_raw_texts")
     try:
         with conn.cursor() as cur:
             # Folders in OCR table but not in folder_file_counts OR outdated

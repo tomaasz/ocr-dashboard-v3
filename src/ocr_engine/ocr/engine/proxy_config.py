@@ -8,8 +8,17 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
+def _is_proxy_disabled() -> bool:
+    """Return True when proxy should be globally disabled."""
+    value = os.environ.get("OCR_PROXY_DISABLED", "").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
 def load_proxy_config(active_profile_name: str, proxies_file: Path | None = None) -> dict | None:
     """Load proxy config for profile; env OCR_PROXY_* overrides file."""
+    if _is_proxy_disabled():
+        return None
+
     env_server = os.environ.get("OCR_PROXY_SERVER", "").strip()
     if env_server:
         config: dict[str, str] = {"server": env_server}

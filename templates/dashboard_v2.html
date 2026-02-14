@@ -2988,6 +2988,12 @@
                         </label>
                     </div>
                     <div class="form-group settings-mt">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="settingProxyDisabledGlobal" onchange="saveWebshareSettings()">
+                            <span data-i18n="settings.proxyDisabledGlobal">Wyłącz proxy dla całej farmy</span>
+                        </label>
+                    </div>
+                    <div class="form-group settings-mt">
                         <label class="form-label" data-i18n="settings.webshareSeed">Seed</label>
                         <input type="text" class="form-input" id="settingWebshareSeed" onchange="saveWebshareSettings()">
                     </div>
@@ -3994,6 +4000,7 @@
           "settings.websharePageSize": "Page size",
           "settings.webshareCountries": "Kody krajów",
           "settings.webshareMinValid": "Tylko valid",
+          "settings.proxyDisabledGlobal": "Wyłącz proxy dla całej farmy",
           "settings.webshareSeed": "Seed",
           "settings.webshareSyncNow": "Sync teraz",
           "settings.tooltips.updateCountsOnNewPaths":
@@ -4326,6 +4333,7 @@
           "settings.websharePageSize": "Page size",
           "settings.webshareCountries": "Country codes",
           "settings.webshareMinValid": "Only valid",
+          "settings.proxyDisabledGlobal": "Disable proxy for whole farm",
           "settings.webshareSeed": "Seed",
           "settings.webshareSyncNow": "Sync now",
           "settings.tooltips.updateCountsOnNewPaths":
@@ -9118,6 +9126,7 @@
           const pageSize = document.getElementById("settingWebsharePageSize");
           const countries = document.getElementById("settingWebshareCountries");
           const minValid = document.getElementById("settingWebshareMinValid");
+          const proxyDisabled = document.getElementById("settingProxyDisabledGlobal");
           const seed = document.getElementById("settingWebshareSeed");
           if (token) token.value = data.WEBSHARE_API_TOKEN || "";
           if (mode) mode.value = data.WEBSHARE_PROXY_MODE || "";
@@ -9125,6 +9134,11 @@
           if (pageSize) pageSize.value = data.WEBSHARE_PAGE_SIZE || "";
           if (countries) countries.value = data.WEBSHARE_COUNTRY_CODES || "";
           if (minValid) minValid.checked = String(data.WEBSHARE_MIN_VALID || "1") !== "0";
+          if (proxyDisabled) {
+            proxyDisabled.checked = ["1", "true", "yes", "on"].includes(
+              String(data.OCR_PROXY_DISABLED || "0").toLowerCase(),
+            );
+          }
           if (seed) seed.value = data.WEBSHARE_ASSIGN_SEED || "";
           loadWebshareStatus();
         } catch (e) {
@@ -9140,6 +9154,7 @@
           WEBSHARE_PAGE_SIZE: document.getElementById("settingWebsharePageSize")?.value || "",
           WEBSHARE_COUNTRY_CODES: document.getElementById("settingWebshareCountries")?.value || "",
           WEBSHARE_MIN_VALID: document.getElementById("settingWebshareMinValid")?.checked ? "1" : "0",
+          OCR_PROXY_DISABLED: document.getElementById("settingProxyDisabledGlobal")?.checked ? "1" : "0",
           WEBSHARE_ASSIGN_SEED: document.getElementById("settingWebshareSeed")?.value || "",
         };
         try {
