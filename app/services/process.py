@@ -550,13 +550,34 @@ def start_profile_process(
             elif "DISPLAY" not in env:
                 env["DISPLAY"] = ":0"  # Fallback default
 
-        # Run process
-        cmd = ["python3", "run.py"]
-
         # Determine working directory (project root)
         cwd = Path(__file__).parents[2]  # app/services/process.py -> app/services -> app -> root
         if not (cwd / "run.py").exists():
             return False, "Nie znaleziono pliku run.py"
+
+        # Add src directory to PYTHONPATH so ocr_engine module can be found
+        src_dir = cwd / "src"
+        if src_dir.exists():
+            # Prepend src to PYTHONPATH to ensure it takes precedence
+            existing_path = env.get("PYTHONPATH", "")
+            if existing_path:
+                env["PYTHONPATH"] = f"{src_dir}:{existing_path}"
+            else:
+                env["PYTHONPATH"] = str(src_dir)
+
+        # Run process with venv Python interpreter
+        # Use venv/bin/python if it exists, otherwise fall back to .venv/bin/python or python3
+        python_bin = None
+        for venv_name in ("venv", ".venv"):
+            venv_python = cwd / venv_name / "bin" / "python"
+            if venv_python.exists():
+                python_bin = str(venv_python)
+                break
+
+        if not python_bin:
+            python_bin = "python3"  # Fallback to system python if no venv found
+
+        cmd = [python_bin, "run.py"]
 
         # Prepare log file
         log_dir = cwd / "logs" / "profiles"
