@@ -85,8 +85,9 @@ class ActivityLogger:
         # Try to get IP address
         try:
             info["ip_address"] = socket.gethostbyname(info["hostname"])
-        except Exception:
-            pass
+        except Exception as e:
+            # S110: Log error instead of silent fail
+            print(f"⚠️ ActivityLogger: Failed to get IP: {e}", file=sys.stderr)
 
         return info
 
@@ -120,8 +121,9 @@ class ActivityLogger:
                             if key_str.startswith("OCR_"):
                                 env_vars[key_str] = val.decode("utf-8", errors="ignore")
                     info["env_vars"] = env_vars
-        except Exception:
-            pass
+        except Exception as e:
+            # S110: Log error instead of silent fail
+            print(f"⚠️ ActivityLogger: Failed to get process info: {e}", file=sys.stderr)
         return info
 
     def log_event(
@@ -380,8 +382,9 @@ class ActivityLogger:
 
             with open(log_file, "a") as f:
                 f.write(log_line)
-        except Exception:
-            pass  # Silent fail for fallback logging
+        except Exception as e:
+            # S110: Log error instead of silent fail
+            print(f"⚠️ ActivityLogger: Failed to write to fallback log file: {e}", file=sys.stderr)
 
 
 # Convenience function for quick logging

@@ -30,10 +30,12 @@ def run_pipeline_jobdir(job_dir: Path) -> PipelineResult:
         str(job_dir),
     ]
 
+    # S603: trusted input (job_dir is typed Path)
     result = subprocess.run(
         cmd,
         capture_output=True,
         text=True,
+        check=False,  # We handle returncode manually
     )
 
     return PipelineResult(

@@ -1215,24 +1215,45 @@ def _build_item_path(base_path: str, name: str, os_type: str) -> str:
         504: {"description": "SSH connection timeout"},
     },
 )
-def browse_directory(host_id: str, path: str = "/", os_type: str = "linux"):
+def browse_directory(
+    host_id: str | None = None,
+    host: str | None = None,
+    user: str | None = None,
+    ssh_opts: str = "",
+    path: str = "/",
+    os_type: str = "linux",
+):
     """Browse directories on a remote host via SSH.
 
     Supports Linux (ls) and Windows (PowerShell) hosts.
     """
     try:
-        config = get_effective_remote_config()
-        hosts = config.get("OCR_REMOTE_HOSTS_LIST", [])
-        host = next((h for h in hosts if h.get("id") == host_id), None)
-        if not host:
-            raise HTTPException(status_code=404, detail=f"Host {host_id} not found")
-
         safe_path = path.strip() or ("/" if os_type != "windows" else "C:\\")
-        ssh_user = validate_username(str(host.get("user", "root")).strip())
-        ssh_host = validate_hostname(str(host.get("address", "")).strip())
-        ssh_opts = validate_ssh_opts(str(host.get("sshOpts", "")).strip())
+        ssh_user = ""
+        ssh_host = ""
+
+        if host_id:
+            config = get_effective_remote_config()
+            hosts = config.get("OCR_REMOTE_HOSTS_LIST", [])
+            host_cfg = next((h for h in hosts if str(h.get("id")) == str(host_id)), None)
+            if not host_cfg:
+                raise HTTPException(status_code=404, detail=f"Host {host_id} not found")
+            ssh_user = validate_username(str(host_cfg.get("user", "root")).strip())
+            ssh_host = validate_hostname(
+                str(host_cfg.get("host") or host_cfg.get("address") or "").strip()
+            )
+            ssh_opts = validate_ssh_opts(
+                str(host_cfg.get("ssh") or host_cfg.get("sshOpts") or host_cfg.get("ssh_opts") or "")
+            )
+        else:
+            ssh_user = validate_username(str(user or "").strip())
+            ssh_host = validate_hostname(str(host or "").strip())
+            ssh_opts = validate_ssh_opts(str(ssh_opts or "").strip())
+
         if not ssh_host:
             raise HTTPException(status_code=400, detail="Host address not configured")
+        if not ssh_user:
+            raise HTTPException(status_code=400, detail="Host user not configured")
 
         # Security: Command injection prevented by:
         # 1. ssh_user validated by validate_username() — regex [a-zA-Z0-9_\-.]
@@ -1298,10 +1319,146 @@ def browse_directory(host_id: str, path: str = "/", os_type: str = "linux"):
             "path": safe_path,
             "parent": _compute_parent_path(safe_path, os_type),
             "items": items,
-            "host_id": host_id,
+            "host_id": host_id or None,
             "os_type": os_type,
         }
 
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504, detail="SSH connection timeout") from None
+    except HTTPException:
+        raise
+    except Exception as e:
+        handle_server_error(e)
+
+
+def _run_ssh_check(
+    ssh_user: str,
+    ssh_host: str,
+    ssh_opts: str,
+    remote_cmd: str,
+    *,
+    timeout: int = 12,
+) -> subprocess.CompletedProcess:
+    """Run a checked SSH command and return CompletedProcess."""
+    cmd = ["ssh"]
+    if ssh_opts:
+        cmd.extend(shlex.split(ssh_opts))
+    cmd.extend([f"{ssh_user}@{ssh_host}", remote_cmd])
+    return subprocess.run(
+        cmd,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        check=False,
+    )
+
+
+def _linux_path_check_cmd(path: str, expect_dir: bool) -> str:
+    check_flag = "-d" if expect_dir else "-x"
+    return f"test {check_flag} {shlex.quote(path)} && echo OK || echo MISSING"
+
+
+def _windows_path_check_cmd(path: str, expect_dir: bool) -> str:
+    path_type = "Container" if expect_dir else "Leaf"
+    escaped = path.replace("'", "''")
+    return (
+        "powershell -NoProfile -Command "
+        f"\"if (Test-Path -Path '{escaped}' -PathType {path_type}) {{ 'OK' }} else {{ 'MISSING' }}\""
+    )
+
+
+def _path_check(
+    ssh_user: str,
+    ssh_host: str,
+    ssh_opts: str,
+    path_value: str,
+    *,
+    os_type: str,
+    expect_dir: bool,
+) -> dict[str, object]:
+    raw = str(path_value or "").strip()
+    if not raw:
+        return {"ok": True, "skipped": True, "message": "Skipped (empty)"}
+
+    cmd = (
+        _windows_path_check_cmd(raw, expect_dir)
+        if os_type == "windows"
+        else _linux_path_check_cmd(raw, expect_dir)
+    )
+    result = _run_ssh_check(ssh_user, ssh_host, ssh_opts, cmd)
+    output = (result.stdout or result.stderr or "").strip()
+    ok = result.returncode == 0 and "OK" in output and "MISSING" not in output
+    return {"ok": ok, "output": output or ("OK" if ok else "MISSING")}
+
+
+@router.post(
+    "/settings/remote-host/test",
+    responses={
+        400: {"description": "Invalid parameters"},
+        504: {"description": "SSH connection timeout"},
+    },
+)
+def test_remote_host(payload: dict = Body(default_factory=dict)):
+    """Run connectivity and path checks for a (possibly unsaved) remote host config."""
+    host = validate_hostname(str(payload.get("host", "")).strip())
+    user = validate_username(str(payload.get("user", "")).strip())
+    ssh_opts = validate_ssh_opts(str(payload.get("ssh_opts", "")).strip())
+    os_type = str(payload.get("os_type", "linux") or "linux").strip().lower()
+    if os_type not in {"linux", "windows"}:
+        os_type = "linux"
+
+    if not host or not user:
+        raise HTTPException(status_code=400, detail="Host i użytkownik są wymagane")
+
+    try:
+        checks: dict[str, dict[str, object]] = {}
+        ping_cmd = "echo OK"
+        if os_type == "windows":
+            ping_cmd = "powershell -NoProfile -Command \"Write-Output OK\""
+        ping_result = _run_ssh_check(user, host, ssh_opts, ping_cmd)
+        ping_ok = ping_result.returncode == 0 and "OK" in (ping_result.stdout or "")
+        checks["ssh"] = {
+            "ok": ping_ok,
+            "output": (ping_result.stdout or ping_result.stderr or "").strip(),
+        }
+        if not ping_ok:
+            return {"success": False, "checks": checks}
+
+        checks["repo"] = _path_check(
+            user,
+            host,
+            ssh_opts,
+            str(payload.get("repo", "")),
+            os_type=os_type,
+            expect_dir=True,
+        )
+        checks["python"] = _path_check(
+            user,
+            host,
+            ssh_opts,
+            str(payload.get("python", "")),
+            os_type=os_type,
+            expect_dir=False,
+        )
+        checks["profile_root"] = _path_check(
+            user,
+            host,
+            ssh_opts,
+            str(payload.get("profile_root", "")),
+            os_type=os_type,
+            expect_dir=True,
+        )
+        checks["chrome_bin"] = _path_check(
+            user,
+            host,
+            ssh_opts,
+            str(payload.get("chrome_bin", "")),
+            os_type=os_type,
+            expect_dir=False,
+        )
+
+        success = all(entry.get("ok") is True for entry in checks.values())
+        return {"success": success, "checks": checks}
     except subprocess.TimeoutExpired:
         raise HTTPException(status_code=504, detail="SSH connection timeout") from None
     except HTTPException:

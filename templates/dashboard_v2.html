@@ -3392,6 +3392,7 @@
                 </div>
             </div>
             <div class="modal-footer">
+                <button class="btn btn-secondary" id="hostTestBtn" onclick="testHostConfig()" disabled>Test hosta</button>
                 <button class="btn btn-secondary" onclick="closeHostConfigModal()">Anuluj</button>
                 <button class="btn btn-primary" id="hostSaveBtn" onclick="saveHostConfig()" data-remote-host-edit="true">Zapisz</button>
             </div>
@@ -9647,6 +9648,7 @@
         document.getElementById("hostDeployPostgres").checked = false;
         document.getElementById("hostSaveBtn").textContent = "Zapisz";
         document.getElementById("hostSaveBtn").disabled = false;
+        updateHostTestButtonState();
 
         document.getElementById("hostConfigModal").classList.add("visible");
       }
@@ -9683,6 +9685,7 @@
           document.getElementById("hostDeployLogContainer").style.display = "none";
           document.getElementById("hostSaveBtn").textContent = "Zapisz";
           document.getElementById("hostSaveBtn").disabled = false;
+          updateHostTestButtonState();
 
           document.getElementById("hostConfigModal").classList.add("visible");
       }
@@ -9723,6 +9726,83 @@
           document.getElementById("hostConfigModal").classList.remove("visible");
       }
 
+      function isHostTestReady() {
+          const host = document.getElementById("hostAddress")?.value?.trim();
+          const user = document.getElementById("hostUser")?.value?.trim();
+          const repo = document.getElementById("hostRepoDir")?.value?.trim();
+          const python = document.getElementById("hostPythonPath")?.value?.trim();
+          return Boolean(host && user && repo && python);
+      }
+
+      function updateHostTestButtonState() {
+          const btn = document.getElementById("hostTestBtn");
+          if (!btn) return;
+          btn.disabled = !isHostTestReady();
+      }
+
+      async function testHostConfig() {
+          if (!isHostTestReady()) {
+              showToast("warning", "Uwaga", "Uzupełnij Host, Użytkownik, Repozytorium i Komendę Python");
+              return;
+          }
+
+          const btn = document.getElementById("hostTestBtn");
+          const originalText = btn ? btn.textContent : "Test hosta";
+          if (btn) {
+              btn.disabled = true;
+              btn.textContent = "Testowanie...";
+          }
+
+          const payload = {
+              host: document.getElementById("hostAddress")?.value?.trim() || "",
+              user: document.getElementById("hostUser")?.value?.trim() || "",
+              ssh_opts: document.getElementById("hostSshOpts")?.value?.trim() || "",
+              os_type: document.getElementById("hostOsType")?.value || "linux",
+              repo: document.getElementById("hostRepoDir")?.value?.trim() || "",
+              python: document.getElementById("hostPythonPath")?.value?.trim() || "",
+              profile_root: document.getElementById("hostProfileRoot")?.value?.trim() || "",
+              chrome_bin: document.getElementById("hostChromeBin")?.value?.trim() || "",
+          };
+
+          try {
+              const response = await fetch("/api/settings/remote-host/test", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(payload),
+              });
+              const data = await response.json().catch(() => ({}));
+              if (!response.ok) {
+                  showToast("error", "Test hosta", data.detail || "Błąd testu hosta");
+                  return;
+              }
+
+              if (data.success) {
+                  showToast("success", "Test hosta", "Połączenie SSH i ścieżki są poprawne");
+              } else {
+                  const failed = Object.entries(data.checks || {})
+                      .filter(([, value]) => !(value && value.ok))
+                      .map(([key]) => key)
+                      .join(", ");
+                  showToast("error", "Test hosta", failed ? `Niepowodzenie: ${failed}` : "Test nieudany");
+              }
+          } catch (e) {
+              showToast("error", "Test hosta", e.message || "Błąd testu hosta");
+          } finally {
+              if (btn) {
+                  btn.textContent = originalText;
+              }
+              updateHostTestButtonState();
+          }
+      }
+
+      ["hostAddress", "hostUser", "hostRepoDir", "hostPythonPath"].forEach((id) => {
+          const el = document.getElementById(id);
+          if (el) {
+              el.addEventListener("input", updateHostTestButtonState);
+              el.addEventListener("change", updateHostTestButtonState);
+          }
+      });
+
       // File/Directory selection functions
       function _getHostContextForBrowser() {
           // Check if host config modal is visible — if so, browse remote host
@@ -9733,15 +9813,13 @@
                   ? remoteHostsData[index].id
                   : null;
               const osType = document.getElementById('hostOsType')?.value || 'linux';
-              // For new hosts (index === -1), we need address + user set
               const hostAddress = document.getElementById('hostAddress')?.value?.trim();
               const hostUser = document.getElementById('hostUser')?.value?.trim();
+              const hostSshOpts = document.getElementById('hostSshOpts')?.value?.trim() || '';
               if (hostId) {
                   return { hostId, osType };
               } else if (hostAddress && hostUser) {
-                  // New host not yet saved — can't browse remote, show message
-                  showToast('warning', 'Uwaga', 'Zapisz hosta przed przeglądaniem zdalnych plików');
-                  return null;
+                  return { hostId: null, osType, hostAddress, hostUser, hostSshOpts };
               }
           }
           return { hostId: null, osType: 'linux' };  // Local browsing
@@ -9750,13 +9828,29 @@
       function selectDirectory(inputId) {
           const ctx = _getHostContextForBrowser();
           if (!ctx) return;  // Aborted (e.g. unsaved new host)
-          openFileBrowser(inputId, 'directory', ctx.hostId, ctx.osType);
+          openFileBrowser(
+              inputId,
+              'directory',
+              ctx.hostId || null,
+              ctx.osType || 'linux',
+              ctx.hostAddress || null,
+              ctx.hostUser || null,
+              ctx.hostSshOpts || '',
+          );
       }
 
       function selectFile(inputId) {
           const ctx = _getHostContextForBrowser();
           if (!ctx) return;
-          openFileBrowser(inputId, 'file', ctx.hostId, ctx.osType);
+          openFileBrowser(
+              inputId,
+              'file',
+              ctx.hostId || null,
+              ctx.osType || 'linux',
+              ctx.hostAddress || null,
+              ctx.hostUser || null,
+              ctx.hostSshOpts || '',
+          );
       }
 
       async function saveHostConfig() {
@@ -11281,15 +11375,29 @@
         mode: 'directory', // 'directory' or 'file'
         items: [],
         hostId: null,   // null = local browsing, string = remote host ID
-        osType: 'linux' // 'linux' or 'windows'
+        osType: 'linux', // 'linux' or 'windows'
+        hostAddress: null,
+        hostUser: null,
+        hostSshOpts: '',
       };
 
-      function openFileBrowser(inputId, mode = 'directory', hostId = null, osType = 'linux') {
+      function openFileBrowser(
+          inputId,
+          mode = 'directory',
+          hostId = null,
+          osType = 'linux',
+          hostAddress = null,
+          hostUser = null,
+          hostSshOpts = '',
+      ) {
         fbState.targetInputId = inputId;
         fbState.mode = mode;
         fbState.selectedPath = null;
         fbState.hostId = hostId;
         fbState.osType = osType;
+        fbState.hostAddress = hostAddress;
+        fbState.hostUser = hostUser;
+        fbState.hostSshOpts = hostSshOpts || '';
         
         // Try to get initial path from input
         const currentInputVal = document.getElementById(inputId)?.value;
@@ -11303,7 +11411,8 @@
                 ? currentInputVal : '/';
         }
         
-        const titleSuffix = hostId ? ' (zdalny)' : '';
+        const isRemoteBrowse = Boolean(hostId || (hostAddress && hostUser));
+        const titleSuffix = isRemoteBrowse ? ' (zdalny)' : '';
         document.getElementById('fileBrowserTitle').textContent = 
             (mode === 'directory' ? 'Wybierz folder' : 'Wybierz plik') + titleSuffix;
         document.getElementById('fileBrowserConfirmBtn').textContent = mode === 'directory' ? 'Wybierz ten folder' : 'Wybierz plik';
@@ -11344,9 +11453,21 @@
             const encodedPath = encodeURIComponent(path);
             let url;
             
-            if (fbState.hostId) {
+            if (fbState.hostId || (fbState.hostAddress && fbState.hostUser)) {
                 // Remote host browsing
-                url = `/browse-directory?host_id=${encodeURIComponent(fbState.hostId)}&path=${encodedPath}&os_type=${encodeURIComponent(fbState.osType)}`;
+                const query = new URLSearchParams();
+                query.set("path", path);
+                query.set("os_type", fbState.osType);
+                if (fbState.hostId) {
+                    query.set("host_id", fbState.hostId);
+                } else {
+                    query.set("host", fbState.hostAddress);
+                    query.set("user", fbState.hostUser);
+                    if (fbState.hostSshOpts) {
+                        query.set("ssh_opts", fbState.hostSshOpts);
+                    }
+                }
+                url = `/api/browse-directory?${query.toString()}`;
             } else {
                 // Local browsing
                 url = `/api/browse?path=${encodedPath}`;
