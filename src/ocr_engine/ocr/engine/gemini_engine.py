@@ -986,13 +986,14 @@ class GeminiEngine:
                     self.browser.wait_for_ui_ready(w.page)
                     self._session_retry_count = 0
 
-                    # Model enforcement via UI is DISABLED.
-                    # @Pro prefix is prepended to every prompt (see _worker_start_inner),
-                    # which is faster and doesn't get blocked by disabled Pro button (rate limits).
+                    # Updated: Model enforcement via UI is ENABLED again.
+                    # @Pro prefix alone was not enough (resulted in Flash model).
                     if self.pro_only:
-                        logger.info(
-                            f"[W{w.wid}] 🧠 Pro model will be set via @Pro prompt prefix (skip UI enforce)"
+                        logger.info(f"[W{w.wid}] 🧠 Verifying/Switching to Pro model...")
+                        w.model_label = self._ensure_pro_or_pause(
+                            w.page, f"W{w.wid} init_ensure_pro"
                         )
+                        logger.info(f"[W{w.wid}] 🧠 Model set to: {w.model_label}")
 
                     return w  # Success!
 
@@ -1088,12 +1089,12 @@ class GeminiEngine:
                 logger.info(f"🧠 [W{w.wid}] Prepended @Pro to prompt (skip UI switch)")
 
         w.prompt_text = prompt_text
-        # if self.pro_only:
-        #     logger.info(f"🧠 [W{w.wid}] Verifying/Switching to Pro model...")
-        #     w.model_label = self._ensure_pro_or_pause(p, f"W{w.wid} ensure_pro")
-        #     logger.info(f"🧠 [W{w.wid}] Model set to: {w.model_label}")
-        # else:
-        w.model_label = self.browser.detect_model_label(p) or "unknown"
+        if self.pro_only:
+            logger.info(f"🧠 [W{w.wid}] Verifying/Switching to Pro model...")
+            w.model_label = self._ensure_pro_or_pause(p, f"W{w.wid} ensure_pro")
+            logger.info(f"🧠 [W{w.wid}] Model set to: {w.model_label}")
+        else:
+            w.model_label = self.browser.detect_model_label(p) or "unknown"
 
         effective = self.browser.detect_model_label(p) or w.model_label or "unknown"
         logger.info(f"🧠 [Model] EFFECTIVE: {effective}")
