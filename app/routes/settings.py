@@ -9,9 +9,11 @@ import json
 import logging
 import os
 import re
+import shutil
 import shlex
 import signal
 import subprocess
+import sys
 import time
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -707,6 +709,42 @@ def get_default_source_path():
 
     # Ostateczny fallback: katalog domowy
     return {"path": str(home), "source_root": source_root}
+
+
+def _detect_local_chrome_binary() -> str:
+    """Best-effort local Chrome/Chromium binary detection."""
+    candidates = (
+        "google-chrome",
+        "chromium",
+        "chromium-browser",
+        "chrome",
+    )
+    for name in candidates:
+        resolved = shutil.which(name)
+        if resolved:
+            return resolved
+    return ""
+
+
+@router.get("/settings/remote-host/local-defaults")
+def get_local_remote_host_defaults():
+    """Return localhost-based defaults for host configuration modal."""
+    repo_dir = BASE_DIR
+    venv_python = repo_dir / "venv" / "bin" / "python3"
+    if venv_python.exists():
+        python_cmd = str(venv_python)
+    else:
+        python_cmd = sys.executable or "python3"
+
+    return {
+        "repo": str(repo_dir),
+        "python": python_cmd,
+        "profile_root": str(CACHE_DIR),
+        "chrome_bin": _detect_local_chrome_binary(),
+        "user": os.environ.get("USER", ""),
+        "ssh_opts": "-p 22",
+        "os_type": "linux",
+    }
 
 
 @router.get("/source-info")

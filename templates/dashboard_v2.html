@@ -9224,6 +9224,19 @@
       let remoteRunEnabledGlobal = false;
       let remoteRepoStatus = {};
       let remoteUpdateLogs = {};  // Store update logs per host
+      let localHostDefaults = null;
+
+      async function loadLocalHostDefaults() {
+        if (localHostDefaults) return localHostDefaults;
+        try {
+          const response = await fetch("/api/settings/remote-host/local-defaults");
+          if (!response.ok) return null;
+          localHostDefaults = await response.json();
+          return localHostDefaults;
+        } catch (e) {
+          return null;
+        }
+      }
 
       // Open Tailscale auth URLs in new browser tabs
       function openTailscaleAuthUrls(authUrls) {
@@ -9613,7 +9626,7 @@
     }
 
       // Modal Logic
-      function openAddHostModal() {
+      async function openAddHostModal() {
         document.getElementById("editHostIndex").value = "-1"; // New host
         document.getElementById("hostName").value = "";
         document.getElementById("hostRoleWorker").checked = true;
@@ -9648,6 +9661,18 @@
         document.getElementById("hostDeployPostgres").checked = false;
         document.getElementById("hostSaveBtn").textContent = "Zapisz";
         document.getElementById("hostSaveBtn").disabled = false;
+
+        const defaults = await loadLocalHostDefaults();
+        if (defaults) {
+          document.getElementById("hostUser").value = defaults.user || "";
+          document.getElementById("hostSshOpts").value = defaults.ssh_opts || "-p 22";
+          document.getElementById("hostRepoDir").value = defaults.repo || "";
+          document.getElementById("hostPythonPath").value = defaults.python || "";
+          document.getElementById("hostProfileRoot").value = defaults.profile_root || "";
+          document.getElementById("hostChromeBin").value = defaults.chrome_bin || "";
+          document.getElementById("hostOsType").value = defaults.os_type || "linux";
+        }
+
         updateHostTestButtonState();
 
         document.getElementById("hostConfigModal").classList.add("visible");

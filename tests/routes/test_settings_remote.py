@@ -1,5 +1,6 @@
 """Tests for remote host settings helpers/endpoints."""
 
+import os
 import subprocess
 from unittest.mock import patch
 
@@ -77,3 +78,30 @@ def test_remote_host_test_endpoint_reports_field_checks():
     assert data["checks"]["python"]["ok"] is True
     assert data["checks"]["profile_root"]["ok"] is True
     assert data["checks"]["chrome_bin"]["ok"] is True
+
+
+def test_local_remote_host_defaults_endpoint(tmp_path):
+    """Should return localhost-derived defaults for host modal fields."""
+    repo_dir = tmp_path / "repo"
+    cache_dir = tmp_path / "cache"
+    venv_python = repo_dir / "venv" / "bin" / "python3"
+    venv_python.parent.mkdir(parents=True, exist_ok=True)
+    venv_python.write_text("", encoding="utf-8")
+
+    with (
+        patch("app.routes.settings.BASE_DIR", repo_dir),
+        patch("app.routes.settings.CACHE_DIR", cache_dir),
+        patch("app.routes.settings.shutil.which", return_value="/usr/bin/google-chrome"),
+        patch.dict(os.environ, {"USER": "tester"}, clear=False),
+    ):
+        response = client.get("/api/settings/remote-host/local-defaults")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["repo"] == str(repo_dir)
+    assert data["python"] == str(venv_python)
+    assert data["profile_root"] == str(cache_dir)
+    assert data["chrome_bin"] == "/usr/bin/google-chrome"
+    assert data["user"] == "tester"
+    assert data["ssh_opts"] == "-p 22"
+    assert data["os_type"] == "linux"
