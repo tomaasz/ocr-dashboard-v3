@@ -243,7 +243,7 @@ def stop_profile_endpoint(name: str):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
-    process_service.stop_profile_processes(safe_name, wait_timeout=5.0)
+    process_service.stop_profile_processes(safe_name, wait_timeout=10.0)
     return {"success": True, "message": f"Zatrzymano profil '{safe_name}'"}
 
 

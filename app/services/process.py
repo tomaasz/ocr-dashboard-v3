@@ -4,6 +4,7 @@ Handles subprocess management for OCR workers.
 """
 
 import json
+import logging
 import os
 import re
 import shlex
@@ -11,12 +12,11 @@ import signal
 import subprocess
 import sys
 import time
-import logging
 from pathlib import Path
 
+from ..utils.security import validate_hostname, validate_ssh_opts, validate_username
 from . import profiles as profile_service
 from .remote_config import get_effective_remote_config
-from ..utils.security import validate_hostname, validate_username, validate_ssh_opts
 
 logger = logging.getLogger(__name__)
 
@@ -443,6 +443,17 @@ def stop_profile_processes(safe_profile: str, wait_timeout: float = 0.0) -> None
             if not still_running:
                 break
             time.sleep(0.1)
+
+    # Force kill if still running
+    still_running_pids = [pid for pid in pids if pid_is_running(pid)]
+    if still_running_pids:
+        print(f"⚠️ [Stop] Force killing stuck PIDs for '{safe_profile}': {still_running_pids}")
+        for pid in still_running_pids:
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except Exception:
+                pass
+        time.sleep(1.0)  # Wait for kernel to clean up
 
     # Log stop event to database
     if HAS_ACTIVITY_LOGGER and pids:
