@@ -20,6 +20,38 @@ class RemoteDeploymentService:
     SCRIPT_DIR = BASE_DIR / "scripts" / "setup"
 
     @staticmethod
+    def _scp_opts_from_ssh_opts(ssh_opts: str) -> list[str]:
+        """Convert generic SSH opts to SCP-compatible opts.
+
+        Users commonly pass `-p 22` (ssh port syntax). SCP expects `-P 22`.
+        This adapter preserves all other options unchanged.
+        """
+        raw_parts = shlex.split(ssh_opts or "")
+        if not raw_parts:
+            return []
+
+        converted: list[str] = []
+        i = 0
+        while i < len(raw_parts):
+            part = raw_parts[i]
+            if part == "-p":
+                converted.append("-P")
+                if i + 1 < len(raw_parts):
+                    converted.append(raw_parts[i + 1])
+                    i += 2
+                    continue
+                i += 1
+                continue
+            if part.startswith("-p") and len(part) > 2:
+                converted.append("-P" + part[2:])
+                i += 1
+                continue
+            converted.append(part)
+            i += 1
+
+        return converted
+
+    @staticmethod
     def get_setup_script(os_type: str) -> Path | None:
         """Get path to setup script for given OS type.
 
@@ -69,7 +101,7 @@ class RemoteDeploymentService:
             # Build SCP command
             scp_cmd = ["scp"]
             if ssh_opts:
-                scp_cmd.extend(shlex.split(ssh_opts))
+                scp_cmd.extend(RemoteDeploymentService._scp_opts_from_ssh_opts(ssh_opts))
             scp_cmd.extend([str(script_path), f"{host_user}@{host_addr}:{remote_path}"])
 
             # Execute SCP
