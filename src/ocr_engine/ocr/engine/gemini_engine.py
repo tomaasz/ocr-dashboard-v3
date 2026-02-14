@@ -15,7 +15,7 @@ import os
 import re
 import time
 import traceback
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
@@ -1016,21 +1016,20 @@ class GeminiEngine:
         logger.info(f"[Init] Initializing {len(self.workers)} workers in parallel...")
         start_time = time.time()
 
-        with ThreadPoolExecutor(max_workers=len(self.workers)) as executor:
-            futures = {executor.submit(_init_single_worker, w): w for w in self.workers}
-
-            for future in as_completed(futures):
-                w = futures[future]
-                try:
-                    future.result()  # Raises exception if worker init failed
-                    elapsed = time.time() - start_time
-                    logger.info(f"✅ [Init] W{w.wid} ready after {elapsed:.1f}s")
-                except Exception as e:
-                    logger.error(f"❌ [Init] W{w.wid} failed: {e}")
-                    # Save error screenshots for all workers
-                    for ww in self.workers:
-                        self._save_startup_error_screenshot(ww.page, ww.wid, "Init failed")
-                    raise
+        # Updated: Initialize sequentially to avoid greenlet/thread switching errors with Playwright Sync API
+        # Parallel init caused "Cannot switch to a different thread" errors because
+        # Playwright objects (Page, Context) are not thread-safe.
+        for w in self.workers:
+            try:
+                _init_single_worker(w)
+                elapsed = time.time() - start_time
+                logger.info(f"✅ [Init] W{w.wid} ready after {elapsed:.1f}s")
+            except Exception as e:
+                logger.error(f"❌ [Init] W{w.wid} failed: {e}")
+                # Save error screenshots for all workers
+                for ww in self.workers:
+                    self._save_startup_error_screenshot(ww.page, ww.wid, "Init failed")
+                raise
 
         total_time = time.time() - start_time
         logger.info(f"✅ [Init] All {len(self.workers)} workers ready in {total_time:.1f}s")
