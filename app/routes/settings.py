@@ -838,9 +838,20 @@ def detect_remote_chrome(
     if not host or not user:
         raise HTTPException(status_code=400, detail="Host and user required")
 
-    candidates = ("google-chrome", "chromium", "chromium-browser", "chrome")
-    which_cmd = " || ".join(f"which {c} 2>/dev/null" for c in candidates)
-    result = _run_ssh_check(user, host, ssh_opts, f"{{ {which_cmd}; }} | head -1")
+    candidates = (
+        "chromium-browser",
+        "chromium",
+        "google-chrome",
+        "chrome",
+        "/snap/bin/chromium",
+        "/snap/bin/chromium-browser",
+        "/usr/bin/chromium-browser",
+        "/usr/bin/google-chrome",
+    )
+    # Use 'command -v' which is more portable and handles aliases/functions/builtins better than 'which'
+    # Also explicitly check for file existence for absolute paths
+    check_cmd = " || ".join(f"command -v {c} 2>/dev/null" for c in candidates)
+    result = _run_ssh_check(user, host, ssh_opts, f"{{ {check_cmd}; }} | head -1")
     chrome_bin = (
         (result.stdout or "").strip().split("\n")[0].strip() if result.returncode == 0 else ""
     )
