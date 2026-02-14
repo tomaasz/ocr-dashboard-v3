@@ -27,7 +27,12 @@ def main():
 
     # Run loop for auto-restart support
     while True:
-        engine = GeminiEngine(job_dir=f"jobs/{batch_id}", prompt_id="raw_ocr", headed=is_headed)
+        engine = GeminiEngine(
+            job_dir=f"jobs/{batch_id}",
+            prompt_id="raw_ocr",
+            headed=is_headed,
+            profile_name=profile_suffix if profile_suffix != "(domyślny)" else "default",
+        )
         exit_code = engine.run()
 
         if exit_code == 100:
