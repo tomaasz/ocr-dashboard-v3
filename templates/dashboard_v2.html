@@ -3131,8 +3131,8 @@
         </div>
 
     <!-- Delete Confirmation Modal -->
-    <div class="modal-overlay" id="hostConfigModal">
-        <div class="modal" style="max-width: 800px; width: 95%;">
+      <div class="modal-overlay" id="hostConfigModal">
+          <div class="modal" style="max-width: 800px; width: 95%;">
             <div class="modal-header">
                 <h3 class="modal-title">Konfiguracja Hosta</h3>
                 <button class="btn btn-ghost btn-icon" onclick="closeHostConfigModal()">
@@ -3160,8 +3160,8 @@
                                  <input type="checkbox" id="hostRoleBrowser" class="compact-checkbox">
                                  <span class="compact-checkbox-span">Browser (Playwright)</span>
                              </label>
-                         </div>
-                    </div>
+          </div>
+      </div>
 
                     <!-- Worker / Common Settings -->
                     <div class="settings-section-divider text-sm font-medium text-secondary" style="grid-column: span 2;">Połączenie SSH</div>
@@ -3237,19 +3237,20 @@
                              </div>
                              <small class="text-secondary" style="font-size: 0.75rem; margin-top: 2px; display: block;">💡 Katalog główny dla profili Chrome (np. C:\Users\user\.cache\profiles)</small>
                         </div>
-                        <div class="form-group">
-                             <label class="compact-form-label">Chrome Binary</label>
-                             <div class="input-group">
-                                 <input type="text" class="compact-form-input" id="hostChromeBin" placeholder="/usr/bin/google-chrome">
-                                 <button type="button" class="btn btn-secondary btn-sm" onclick="selectFile('hostChromeBin')" title="Wybierz plik">
-                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                         <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
-                                         <polyline points="13 2 13 9 20 9"></polyline>
-                                     </svg>
-                                 </button>
-                             </div>
-                             <small class="text-secondary" style="font-size: 0.75rem; margin-top: 2px; display: block;">💡 Pełna ścieżka do pliku wykonywalnego Chrome/Chromium</small>
-                        </div>
+                         <div class="form-group">
+                              <label class="compact-form-label">Chrome Binary</label>
+                              <div class="input-group">
+                                  <input type="text" class="compact-form-input" id="hostChromeBin" placeholder="/usr/bin/google-chrome">
+                                  <button type="button" class="btn btn-secondary btn-sm" onclick="selectFile('hostChromeBin')" title="Wybierz plik">
+                                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                          <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                                          <polyline points="13 2 13 9 20 9"></polyline>
+                                      </svg>
+                                  </button>
+                                  <button type="button" class="btn btn-secondary btn-sm" id="hostDetectChromeBtn" onclick="detectRemoteChrome()" data-remote-host-edit="true">Wykryj Chrome</button>
+                              </div>
+                              <small class="text-secondary" style="font-size: 0.75rem; margin-top: 2px; display: block;">💡 Pełna ścieżka do pliku wykonywalnego Chrome/Chromium</small>
+                         </div>
                         <div class="host-port-grid" style="grid-column: span 2;">
                              <div class="form-group">
                                 <label class="compact-form-label">Port Base</label>
@@ -3405,11 +3406,30 @@
                 <button class="btn btn-secondary" onclick="closeHostConfigModal()">Anuluj</button>
                 <button class="btn btn-primary" id="hostSaveBtn" onclick="saveHostConfig()" data-remote-host-edit="true">Zapisz</button>
             </div>
-        </div>
-    </div>
+          </div>
+      </div>
 
-    <!-- Delete Confirmation Modal -->
-    <div class="modal-overlay" id="deleteModal">
+      <div class="modal-overlay" id="hostPostgresConfirmModal">
+          <div class="modal" style="max-width: 420px;">
+              <div class="modal-header" style="border-bottom: 1px solid var(--color-border);">
+                  <h3 class="modal-title">Potwierdź instalację</h3>
+                  <button class="modal-close" onclick="closePostgresConfirmModal()">&times;</button>
+              </div>
+              <div class="modal-body" style="padding: 20px;">
+                  <p class="text-secondary" style="margin: 0;">
+                      Instalacja Postgresa uruchomi dodatkowe usługi na hoście i może potrwać kilka minut.
+                      Czy na pewno chcesz kontynuować?
+                  </p>
+              </div>
+              <div class="modal-footer" style="border-top: 1px solid var(--color-border); padding: 16px 20px;">
+                  <button class="btn btn-secondary" onclick="closePostgresConfirmModal()">Anuluj</button>
+                  <button class="btn btn-primary" id="hostPostgresConfirmBtn" onclick="confirmPostgresDeploy()">Kontynuuj</button>
+              </div>
+          </div>
+      </div>
+
+      <!-- Delete Confirmation Modal -->
+      <div class="modal-overlay" id="deleteModal">
       <div class="modal">
         <div class="modal-header">
           <h3>Usuń profil</h3>
@@ -9236,6 +9256,7 @@
       let remoteRepoStatus = {};
       let remoteUpdateLogs = {};  // Store update logs per host
       let localHostDefaults = null;
+      let pendingPostgresDeploy = null;
 
       function _buildFallbackWindowsPreset(user) {
         const winUser = user || "user";
@@ -9917,6 +9938,65 @@
           const btn = document.getElementById("hostTestBtn");
           if (!btn) return;
           btn.disabled = !isHostTestReady();
+      }
+
+      async function detectRemoteChrome() {
+          const btn = document.getElementById("hostDetectChromeBtn");
+          const hostAddress = document.getElementById("hostAddress")?.value?.trim();
+          const user = document.getElementById("hostUser")?.value?.trim();
+          const sshOpts = document.getElementById("hostSshOpts")?.value?.trim() || "";
+
+          if (!hostAddress || !user) {
+              showToast("warning", "Chrome", "Uzupełnij Host i Użytkownik");
+              return;
+          }
+
+          const originalText = btn ? btn.textContent : "Wykryj Chrome";
+          if (btn) {
+              btn.disabled = true;
+              btn.textContent = "Wykrywanie...";
+          }
+
+          try {
+              const detectResp = await fetch(`/api/settings/remote-host/detect-chrome?host=${encodeURIComponent(hostAddress)}&user=${encodeURIComponent(user)}&ssh_opts=${encodeURIComponent(sshOpts)}`);
+              const detectData = await detectResp.json().catch(() => ({}));
+              if (!detectResp.ok) {
+                  showToast("error", "Chrome", detectData.detail || "Błąd wykrywania");
+                  return;
+              }
+              if (detectData.chrome_bin) {
+                  document.getElementById("hostChromeBin").value = detectData.chrome_bin;
+                  showToast("success", "Chrome", "Wykryto Chrome/Chromium");
+              } else {
+                  showToast("warning", "Chrome", "Nie znaleziono binarki Chrome");
+              }
+          } catch (e) {
+              showToast("error", "Chrome", e.message || "Błąd wykrywania");
+          } finally {
+              if (btn) {
+                  btn.disabled = false;
+                  btn.textContent = originalText;
+              }
+          }
+      }
+
+      function closePostgresConfirmModal() {
+          const modal = document.getElementById("hostPostgresConfirmModal");
+          if (modal) modal.classList.remove("visible");
+          pendingPostgresDeploy = null;
+      }
+
+      async function confirmPostgresDeploy() {
+          const pending = pendingPostgresDeploy;
+          closePostgresConfirmModal();
+          if (!pending) return;
+          await deployAndSaveHost(
+              pending.index,
+              pending.hostAddress,
+              pending.user,
+              pending.sshOpts,
+              { skipPostgresConfirm: true },
+          );
       }
 
       async function testHostConfig() {
