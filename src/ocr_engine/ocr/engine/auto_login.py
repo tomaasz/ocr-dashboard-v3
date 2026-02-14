@@ -114,6 +114,78 @@ class AutoLogin:
             logger.error(f"[AutoLogin] Failed to generate TOTP: {e}")
             return None
 
+    def _check_and_wait_for_captcha(self, page: Page, context: str = "") -> bool:
+        """
+        Check if CAPTCHA is present and wait for manual resolution.
+
+        Returns True if CAPTCHA was detected and resolved, False if no CAPTCHA.
+        Raises exception if CAPTCHA not resolved within timeout.
+        """
+        try:
+            # Common CAPTCHA indicators
+            captcha_selectors = [
+                "iframe[src*='recaptcha']",
+                "iframe[src*='captcha']",
+                "[id*='captcha']",
+                "[class*='captcha']",
+                "div:has-text('verify you')",
+                "div:has-text('not a robot')",
+                "div:has-text('Verify it')",
+            ]
+
+            captcha_found = False
+            for selector in captcha_selectors:
+                if page.locator(selector).count() > 0:
+                    captcha_found = True
+                    break
+
+            if not captcha_found:
+                return False
+
+            # CAPTCHA detected!
+            logger.warning(f"⚠️ [AutoLogin] CAPTCHA DETECTED {context}!")
+            logger.info("=" * 70)
+            logger.info("🤖 CAPTCHA must be solved manually")
+            logger.info("Please solve the CAPTCHA in the browser window")
+            logger.info("The script will wait up to 5 minutes...")
+            logger.info("=" * 70)
+
+            # Wait for CAPTCHA to disappear (max 5 minutes)
+            max_wait = 300  # 5 minutes
+            waited = 0
+            check_interval = 5  # Check every 5 seconds
+
+            while waited < max_wait:
+                # Re-check if CAPTCHA is still present
+                still_present = False
+                for selector in captcha_selectors:
+                    if page.locator(selector).count() > 0:
+                        still_present = True
+                        break
+
+                if not still_present:
+                    logger.info("✅ [AutoLogin] CAPTCHA resolved! Continuing...")
+                    page.wait_for_timeout(2000)  # Wait for page to stabilize
+                    return True
+
+                page.wait_for_timeout(check_interval * 1000)
+                waited += check_interval
+
+                if waited % 30 == 0:  # Log every 30 seconds
+                    logger.info(
+                        f"[AutoLogin] Still waiting for CAPTCHA... ({waited}s / {max_wait}s)"
+                    )
+
+            # Timeout - CAPTCHA still present
+            logger.error("❌ [AutoLogin] CAPTCHA not resolved within 5 minutes!")
+            raise Exception("CAPTCHA resolution timeout - manual intervention required")
+
+        except Exception as e:
+            if "CAPTCHA resolution timeout" in str(e):
+                raise
+            logger.debug(f"[AutoLogin] CAPTCHA check error: {e}")
+            return False
+
     def perform_login(self, page: Page) -> bool:
         """
         Perform full Google login sequence.
@@ -198,6 +270,9 @@ class AutoLogin:
             # Wait for password page to load (Google can be slow, especially with proxy)
             logger.info("[AutoLogin] Waiting for page transition...")
             page.wait_for_timeout(5000)
+
+            # Check for CAPTCHA after email entry
+            self._check_and_wait_for_captcha(page, "after email")
 
             # Step 3: Enter password
             # Google may show a security key (FIDO) challenge instead of password.
@@ -329,6 +404,9 @@ class AutoLogin:
                 page.keyboard.press("Enter")
                 page.wait_for_timeout(3000)
 
+            # Check for CAPTCHA after password entry
+            self._check_and_wait_for_captcha(page, "after password")
+
             # Step 4: Check for SMS verification requirement
             if self._detect_sms_verification(page):
                 logger.critical(
@@ -372,6 +450,9 @@ class AutoLogin:
                     page.keyboard.press("Enter")
 
                 page.wait_for_timeout(3000)
+
+                # Check for CAPTCHA after 2FA
+                self._check_and_wait_for_captcha(page, "after 2FA")
 
                 # Check again after TOTP - Google might still ask for SMS
                 if self._detect_sms_verification(page):
