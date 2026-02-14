@@ -9525,6 +9525,9 @@
         if (status === "no_remote") {
           return `<span class="badge badge-warning">no remote${suffix}</span>`;
         }
+        if (status === "not_git_repo") {
+          return `<span class="badge badge-warning">not git repo${suffix}</span>`;
+        }
         if (status === "fetch_failed") {
           return `<span class="badge badge-error">fetch failed${suffix}</span>`;
         }
@@ -9598,7 +9601,7 @@
           
           renderRemoteHosts();
           const anyError = (data.hosts || []).some((h) =>
-            ["error", "fetch_failed"].includes(h.status),
+            ["error", "fetch_failed", "not_git_repo"].includes(h.status),
           );
           showToast(
             anyError ? "warning" : "success",
@@ -9656,7 +9659,7 @@
           renderRemoteHosts();
           
           const hasError = (data.hosts || []).some(h => 
-            ['error', 'fetch_failed'].includes(h.status)
+            ['error', 'fetch_failed', 'not_git_repo'].includes(h.status)
           );
           if (hasError) {
             toastHost("warning", "Zakończono z błędami", "Sprawdź logi aktualizacji", hostId);

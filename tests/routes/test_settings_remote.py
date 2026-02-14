@@ -7,6 +7,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.routes import settings as settings_routes
 
 client = TestClient(app)
 
@@ -110,3 +111,27 @@ def test_local_remote_host_defaults_endpoint(tmp_path):
     assert data["windows"]["os_type"] == "windows"
     assert data["windows"]["repo"].startswith("C:\\")
     assert data["windows"]["python"].endswith("\\venv\\Scripts\\python.exe")
+
+
+def test_update_repo_returns_not_git_repo_when_git_metadata_missing():
+    """Should return clear status when repo directory exists but .git is missing."""
+    host = {
+        "id": "h1",
+        "name": "Host 1",
+        "host": "127.0.0.1",
+        "user": "root",
+        "repo": "/opt/ocr-dashboard",
+        "ssh": "-p 22",
+    }
+
+    with patch("app.routes.settings._run_ssh_command") as mock_ssh:
+        # 1) repo directory exists, 2) .git directory missing
+        mock_ssh.side_effect = [
+            (subprocess.CompletedProcess(args=["ssh"], returncode=0, stdout="", stderr=""), []),
+            (subprocess.CompletedProcess(args=["ssh"], returncode=1, stdout="", stderr=""), []),
+        ]
+
+        result = settings_routes._update_repo(host)
+
+    assert result["status"] == "not_git_repo"
+    assert "nie jest repozytorium git" in result["message"]

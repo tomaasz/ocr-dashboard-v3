@@ -404,6 +404,14 @@ def _win_test_repo_cmd(repo_dir: str) -> str:
     return _PS_PREFIX + _ps_quote(script)
 
 
+def _win_test_dir_cmd(repo_dir: str) -> str:
+    repo_ps = _ps_quote(repo_dir)
+    script = (
+        f"$p = {repo_ps}; if (Test-Path -Path $p -PathType Container) {{ exit 0 }} else {{ exit 1 }}"
+    )
+    return _PS_PREFIX + _ps_quote(script)
+
+
 def _build_git_cmd(host: dict, repo_dir: str, git_args: str) -> str:
     """Build a git command appropriate for the host OS."""
     if _is_windows_repo(host, repo_dir):
@@ -435,17 +443,30 @@ def _result_with_auth(payload: dict, auth_urls: list[str]) -> dict:
 def _check_repo_exists(host: dict, repo_dir: str, auth: list[str]) -> dict | None:
     """Verify repo directory exists. Returns error dict or None if OK."""
     if _is_windows_repo(host, repo_dir):
-        check_cmd = _win_test_repo_cmd(repo_dir)
+        check_dir_cmd = _win_test_dir_cmd(repo_dir)
+        check_git_cmd = _win_test_repo_cmd(repo_dir)
     else:
-        check_cmd = _bash_cmd(
-            f"test -d {shlex.quote(repo_dir)} && test -d {shlex.quote(repo_dir)}/.git"
-        )
-    check, urls = _run_ssh_command(host, check_cmd, timeout=10)
+        check_dir_cmd = _bash_cmd(f"test -d {shlex.quote(repo_dir)}")
+        check_git_cmd = _bash_cmd(f"test -d {shlex.quote(repo_dir)}/.git")
+
+    check_dir, urls = _run_ssh_command(host, check_dir_cmd, timeout=10)
     auth.extend(urls)
-    if check.returncode != 0:
+    if check_dir.returncode != 0:
         return _result_with_auth(
             {"status": "error", "message": f"Repo nie istnieje: {repo_dir}"}, auth
         )
+
+    check_git, urls = _run_ssh_command(host, check_git_cmd, timeout=10)
+    auth.extend(urls)
+    if check_git.returncode != 0:
+        return _result_with_auth(
+            {
+                "status": "not_git_repo",
+                "message": f"Katalog istnieje, ale nie jest repozytorium git (.git): {repo_dir}",
+            },
+            auth,
+        )
+
     return None
 
 
@@ -574,26 +595,36 @@ def _update_repo(host: dict) -> dict:
     if not repo_dir:
         return {"status": "error", "message": "Brak ustawionego katalogu repozytorium"}
 
+    auth: list[str] = []
+    err = _check_repo_exists(host, repo_dir, auth)
+    if err:
+        return err
+
     if _is_windows_repo(host, repo_dir):
         pull_cmd = _win_git_cmd(repo_dir, "pull --ff-only")
     else:
         pull_cmd = _bash_cmd(f"cd {shlex.quote(repo_dir)} && git pull --ff-only")
     pull, auth_urls = _run_ssh_command(host, pull_cmd, timeout=60)
+    auth.extend(auth_urls)
     if pull.returncode != 0:
-        result = {
+        return _result_with_auth(
+            {
             "status": "error",
             "message": (pull.stderr or pull.stdout).strip() or "git pull failed",
-        }
-        if auth_urls:
-            result["auth_urls"] = auth_urls
-        return result
+            },
+            auth,
+        )
+
     status = _get_repo_status(host)
+    existing_auth = status.get("auth_urls")
+    if isinstance(existing_auth, list):
+        auth.extend(existing_auth)
+
+    if status.get("status") in {"error", "fetch_failed", "not_git_repo"}:
+        return _result_with_auth(status, auth)
+
     status.update({"status": "updated", "message": (pull.stdout or "").strip()})
-    # Merge auth_urls if any from pull
-    if auth_urls:
-        existing = status.get("auth_urls", [])
-        status["auth_urls"] = list(set(existing + auth_urls))
-    return status
+    return _result_with_auth(status, auth)
 
 
 @router.get("/settings/remote-hosts/repo-status")
