@@ -25,6 +25,9 @@ logs/
 data/
 *.json
 !favorites.json
+*.jpg
+*.jpeg
+*.png
 
 # OS
 .DS_Store
