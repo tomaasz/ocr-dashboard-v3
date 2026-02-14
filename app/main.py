@@ -20,6 +20,7 @@ from .routes import (
     settings_router,
 )
 from .services.cleanup import DEFAULT_CLEANUP_TARGETS, cleanup_folders
+from .services.pause_scheduler import run_pause_scheduler
 from .services.profiles import reset_all_profiles
 from .services.update_counts import (
     listen_new_source_paths,
@@ -48,6 +49,7 @@ async def lifespan(app_instance: FastAPI):
     _track_task(asyncio.create_task(asyncio.to_thread(run_update_counts_if_due)))
     _track_task(asyncio.create_task(asyncio.to_thread(listen_new_source_paths)))
     _track_task(asyncio.create_task(watch_new_source_paths()))
+    _track_task(asyncio.create_task(run_pause_scheduler()))
     yield
     print(f"👋 OCR Dashboard V2 stopping at {time.strftime('%Y-%m-%d %H:%M:%S')}")
 
