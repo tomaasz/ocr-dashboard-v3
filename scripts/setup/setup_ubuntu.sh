@@ -128,6 +128,8 @@ install_system_packages() {
         libxkbcommon0
         libxrandr2
         xdg-utils
+        xvfb
+        libnss3-tools
     )
     if [[ -n "$alsa_pkg" ]]; then
         packages+=("$alsa_pkg")
