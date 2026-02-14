@@ -6,6 +6,10 @@ After=network.target postgresql.service
 User=tomaasz
 Group=tomaasz
 WorkingDirectory=/home/tomaasz/ocr-dashboard-v3
+
+# Load environment variables from .env file
+EnvironmentFile=-/home/tomaasz/ocr-dashboard-v3/.env
+
 Environment="PATH=/home/tomaasz/ocr-dashboard-v3/venv/bin:/usr/bin"
 Environment="PYTHONPATH=/home/tomaasz/ocr-dashboard-v3"
 # Note: %% is used to escape % in systemd unit files
