@@ -10175,7 +10175,16 @@
                                   if (!document.getElementById("hostPythonPath").value.trim()) {
                                       document.getElementById("hostPythonPath").value = `${installDir}/venv/bin/python3`;
                                   }
-                                  if (!document.getElementById("hostChromeBin").value.trim()) {
+                                  const currentChromeBin = document.getElementById("hostChromeBin").value.trim();
+                                  const defaults = await loadLocalHostDefaults();
+                                  const defaultChromeBin = String(
+                                    defaults?.linux?.chrome_bin || defaults?.chrome_bin || "",
+                                  ).trim();
+                                  const shouldDetectChrome =
+                                    !currentChromeBin
+                                    || (defaultChromeBin && currentChromeBin === defaultChromeBin);
+
+                                  if (shouldDetectChrome) {
                                       // Detect chrome binary on the remote host via SSH
                                       try {
                                           const detectResp = await fetch(`/api/settings/remote-host/detect-chrome?host=${encodeURIComponent(hostAddress)}&user=${encodeURIComponent(user)}&ssh_opts=${encodeURIComponent(sshOpts)}`);
@@ -10187,7 +10196,9 @@
                                           }
                                       } catch (_e) {
                                           // Fallback to common paths
-                                          document.getElementById("hostChromeBin").value = osType === 'arch' ? '/usr/bin/chromium' : '/usr/bin/chromium-browser';
+                                          document.getElementById("hostChromeBin").value = osType === 'arch'
+                                            ? '/usr/bin/chromium'
+                                            : '/snap/bin/chromium';
                                       }
                                   }
                                   if (!document.getElementById("hostProfileRoot").value.trim()) {
