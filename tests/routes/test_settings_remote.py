@@ -105,3 +105,8 @@ def test_local_remote_host_defaults_endpoint(tmp_path):
     assert data["user"] == "tester"
     assert data["ssh_opts"] == "-p 22"
     assert data["os_type"] == "linux"
+    assert data["linux"]["repo"] == str(repo_dir)
+    assert data["linux"]["python"] == str(venv_python)
+    assert data["windows"]["os_type"] == "windows"
+    assert data["windows"]["repo"].startswith("C:\\")
+    assert data["windows"]["python"].endswith("\\venv\\Scripts\\python.exe")

@@ -2892,10 +2892,10 @@
 
           <div class="settings-grid">
             
-            <!-- General Settings -->
+            <!-- General + System Settings -->
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title" data-i18n="settings.general">Ogólne</h3>
+                    <h3 class="card-title" data-i18n="settings.generalSystem">Ogólne + System</h3>
                 </div>
                 <div class="card-body">
                     <div class="form-group">
@@ -2911,15 +2911,7 @@
                             <button class="btn btn-secondary lang-btn" data-lang="en" onclick="setLanguage('en')">EN</button>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <!-- System Settings -->
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title" data-i18n="settings.system">System & Konserwacja</h3>
-                </div>
-                <div class="card-body">
+                    <hr class="settings-section-divider">
                     <div class="form-group">
                         <label class="form-label" data-i18n="settings.x11Display">X11 DISPLAY</label>
                         <input type="text" class="form-input" id="settingDisplay" value=":0" onchange="updateSetting('display', this.value)">
@@ -3965,6 +3957,7 @@
           "settings.title": "Ustawienia",
           "settings.subtitle": "Konfiguracja systemu",
           "settings.general": "Ogólne",
+          "settings.generalSystem": "Ogólne + System",
           "settings.autoRestart": "Auto-restart workerów po błędzie",
           "settings.display": "Wyświetlanie",
           "settings.x11Display": "X11 DISPLAY",
@@ -4298,6 +4291,7 @@
           "settings.title": "Settings",
           "settings.subtitle": "System configuration",
           "settings.general": "General",
+          "settings.generalSystem": "General + System",
           "settings.autoRestart": "Auto-restart workers on error",
           "settings.display": "Display",
           "settings.x11Display": "X11 DISPLAY",
@@ -9226,6 +9220,52 @@
       let remoteUpdateLogs = {};  // Store update logs per host
       let localHostDefaults = null;
 
+      function _buildFallbackWindowsPreset(user) {
+        const winUser = user || "user";
+        const repo = "C:\\ocr-dashboard-v3";
+        return {
+          os_type: "windows",
+          user: winUser,
+          ssh_opts: "-p 22",
+          repo,
+          python: `${repo}\\venv\\Scripts\\python.exe`,
+          profile_root: `C:\\Users\\${winUser}\\.cache\\ocr-dashboard-v3`,
+          chrome_bin: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+        };
+      }
+
+      function getHostPresetForOs(osType) {
+        const data = localHostDefaults || {};
+        const normalized = (osType || "linux").toLowerCase();
+        if (normalized === "windows") {
+          const user = data.user || data.linux?.user || "";
+          return data.windows || _buildFallbackWindowsPreset(user);
+        }
+        return data.linux || data;
+      }
+
+      function applyHostPresetForOs(osType, { force = false } = {}) {
+        const preset = getHostPresetForOs(osType);
+        if (!preset || typeof preset !== "object") return;
+
+        const fieldMap = {
+          hostRepoDir: "repo",
+          hostPythonPath: "python",
+          hostProfileRoot: "profile_root",
+          hostChromeBin: "chrome_bin",
+        };
+
+        Object.entries(fieldMap).forEach(([inputId, key]) => {
+          const el = document.getElementById(inputId);
+          if (!el) return;
+          const nextValue = String(preset[key] || "").trim();
+          if (!nextValue) return;
+          if (force || !String(el.value || "").trim()) {
+            el.value = nextValue;
+          }
+        });
+      }
+
       async function loadLocalHostDefaults() {
         if (localHostDefaults) return localHostDefaults;
         try {
@@ -9279,14 +9319,45 @@
             if (!Array.isArray(hostsList)) hostsList = [];
             
             // Note: empty list is valid (all hosts were deleted)
-            
-            remoteHostsData = hostsList.map((host) => {
+
+            const normalizedHosts = hostsList.map((host) => {
               const normalized = { ...host };
               if ("source" in normalized) {
                 delete normalized.source;
               }
               return normalized;
             });
+
+            // Always expose localhost settings as a visible host card in #settings.
+            const defaults = await loadLocalHostDefaults();
+            const linuxPreset = defaults?.linux || defaults || {};
+            const localHost = {
+              id: "localhost",
+              name: "Localhost",
+              enabled: true,
+              isLocal: true,
+              roles: {
+                worker: true,
+                browser: true,
+              },
+              host: "localhost",
+              user: linuxPreset.user || defaults?.user || "",
+              ssh: linuxPreset.ssh_opts || defaults?.ssh_opts || "-",
+              osType: "linux",
+              repo: linuxPreset.repo || defaults?.repo || "",
+              python: linuxPreset.python || defaults?.python || "",
+              profileRoot: linuxPreset.profile_root || defaults?.profile_root || "",
+              chrome: linuxPreset.chrome_bin || defaults?.chrome_bin || "",
+              portBase: 9222,
+              portSpan: 100,
+              localPortBase: 18222,
+              tunnel: true,
+            };
+
+            remoteHostsData = [
+              localHost,
+              ...normalizedHosts.filter((host) => !host?.isLocal && String(host?.id) !== "localhost"),
+            ];
 
             // Update UI
             const toggle = document.getElementById("settingRemoteRunEnabled");
@@ -9385,6 +9456,8 @@
                 <div class="host-body text-sm text-secondary">
                     <div>Host: ${escapeHtml(host.host || '-')}</div>
                     <div>User: ${escapeHtml(host.user || '-')}</div>
+                    <div>Repo: ${escapeHtml(host.repo || '-')}</div>
+                    <div>Python: ${escapeHtml(host.python || '-')}</div>
                     ${!host.isLocal ? `<div class="flex items-center gap-sm mt-1">
                         <span style="font-weight: 600; font-size: 11px;">Repo:</span>
                         ${repoBadge}
@@ -9596,7 +9669,9 @@
       }
 
       async function saveRemoteHosts() {
-        const normalizedHosts = remoteHostsData.map((host) => {
+        const normalizedHosts = remoteHostsData
+          .filter((host) => !host?.isLocal && String(host?.id) !== "localhost")
+          .map((host) => {
           const cleanHost = { ...host };
           delete cleanHost.source;
           return cleanHost;
@@ -9664,13 +9739,11 @@
 
         const defaults = await loadLocalHostDefaults();
         if (defaults) {
-          document.getElementById("hostUser").value = defaults.user || "";
-          document.getElementById("hostSshOpts").value = defaults.ssh_opts || "-p 22";
-          document.getElementById("hostRepoDir").value = defaults.repo || "";
-          document.getElementById("hostPythonPath").value = defaults.python || "";
-          document.getElementById("hostProfileRoot").value = defaults.profile_root || "";
-          document.getElementById("hostChromeBin").value = defaults.chrome_bin || "";
-          document.getElementById("hostOsType").value = defaults.os_type || "linux";
+          const linuxPreset = defaults.linux || defaults;
+          document.getElementById("hostUser").value = linuxPreset.user || defaults.user || "";
+          document.getElementById("hostSshOpts").value = linuxPreset.ssh_opts || defaults.ssh_opts || "-p 22";
+          document.getElementById("hostOsType").value = linuxPreset.os_type || defaults.os_type || "linux";
+          applyHostPresetForOs(document.getElementById("hostOsType").value, { force: true });
         }
 
         updateHostTestButtonState();
@@ -9751,6 +9824,13 @@
           document.getElementById("hostConfigModal").classList.remove("visible");
       }
 
+      function onHostOsTypeChanged() {
+          const osType = document.getElementById("hostOsType")?.value || "linux";
+          const index = parseInt(document.getElementById("editHostIndex")?.value || "-1", 10);
+          const isNewHost = Number.isNaN(index) || index === -1;
+          applyHostPresetForOs(osType, { force: isNewHost });
+      }
+
       function isHostTestReady() {
           const host = document.getElementById("hostAddress")?.value?.trim();
           const user = document.getElementById("hostUser")?.value?.trim();
@@ -9827,6 +9907,11 @@
               el.addEventListener("change", updateHostTestButtonState);
           }
       });
+
+      const hostOsTypeEl = document.getElementById("hostOsType");
+      if (hostOsTypeEl) {
+          hostOsTypeEl.addEventListener("change", onHostOsTypeChanged);
+      }
 
       // File/Directory selection functions
       function _getHostContextForBrowser() {

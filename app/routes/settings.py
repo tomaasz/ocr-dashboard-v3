@@ -726,24 +726,56 @@ def _detect_local_chrome_binary() -> str:
     return ""
 
 
-@router.get("/settings/remote-host/local-defaults")
-def get_local_remote_host_defaults():
-    """Return localhost-based defaults for host configuration modal."""
-    repo_dir = BASE_DIR
+def _build_linux_host_preset(
+    user: str,
+    repo_dir: Path,
+    cache_dir: Path,
+    chrome_bin: str,
+) -> dict[str, str]:
     venv_python = repo_dir / "venv" / "bin" / "python3"
     if venv_python.exists():
         python_cmd = str(venv_python)
     else:
         python_cmd = sys.executable or "python3"
-
     return {
+        "os_type": "linux",
+        "user": user,
+        "ssh_opts": "-p 22",
         "repo": str(repo_dir),
         "python": python_cmd,
-        "profile_root": str(CACHE_DIR),
-        "chrome_bin": _detect_local_chrome_binary(),
-        "user": os.environ.get("USER", ""),
+        "profile_root": str(cache_dir),
+        "chrome_bin": chrome_bin,
+    }
+
+
+def _build_windows_host_preset(user: str) -> dict[str, str]:
+    win_user = user or "user"
+    repo = r"C:\ocr-dashboard-v3"
+    return {
+        "os_type": "windows",
+        "user": win_user,
         "ssh_opts": "-p 22",
-        "os_type": "linux",
+        "repo": repo,
+        "python": repo + r"\venv\Scripts\python.exe",
+        "profile_root": rf"C:\Users\{win_user}\.cache\ocr-dashboard-v3",
+        "chrome_bin": r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+    }
+
+
+@router.get("/settings/remote-host/local-defaults")
+def get_local_remote_host_defaults():
+    """Return localhost-based defaults for host configuration modal."""
+    user = os.environ.get("USER", "")
+    repo_dir = BASE_DIR
+    chrome_bin = _detect_local_chrome_binary()
+    linux_preset = _build_linux_host_preset(user, repo_dir, CACHE_DIR, chrome_bin)
+    windows_preset = _build_windows_host_preset(user)
+
+    return {
+        # Backward-compatible top-level defaults (linux)
+        **linux_preset,
+        "linux": linux_preset,
+        "windows": windows_preset,
     }
 
 
