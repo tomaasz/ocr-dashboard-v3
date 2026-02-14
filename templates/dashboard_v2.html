@@ -3130,38 +3130,38 @@
           </div>
         </div>
 
-    <!-- Delete Confirmation Modal -->
+      <!-- Host Configuration Modal -->
       <div class="modal-overlay" id="hostConfigModal">
           <div class="modal" style="max-width: 800px; width: 95%;">
-            <div class="modal-header">
-                <h3 class="modal-title">Konfiguracja Hosta</h3>
-                <button class="btn btn-ghost btn-icon" onclick="closeHostConfigModal()">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
-            </div>
-            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
-                <input type="hidden" id="editHostIndex">
-                
-                <div class="settings-grid">
-                    <div class="form-group" style="grid-column: span 2;">
-                        <label class="compact-form-label" for="hostName">Nazwa wyświetlana</label>
-                        <input type="text" class="compact-form-input" id="hostName" placeholder="np. Ubuntu VPS">
-                    </div>
+              <div class="modal-header">
+                  <h3 class="modal-title">Konfiguracja Hosta</h3>
+                  <button class="btn btn-ghost btn-icon" onclick="closeHostConfigModal()">
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                  </button>
+              </div>
+              <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                  <input type="hidden" id="editHostIndex">
 
-                    <!-- Roles -->
-                    <div class="form-group" style="grid-column: span 2;">
-                         <div class="compact-form-label">Role hosta</div>
-                         <div class="flex gap-md mt-2">
-                             <label class="compact-checkbox-label">
-                                 <input type="checkbox" id="hostRoleWorker" class="compact-checkbox">
-                                 <span class="compact-checkbox-span">Worker (OCR)</span>
-                             </label>
-                             <label class="compact-checkbox-label">
-                                 <input type="checkbox" id="hostRoleBrowser" class="compact-checkbox">
-                                 <span class="compact-checkbox-span">Browser (Playwright)</span>
-                             </label>
-          </div>
-      </div>
+                  <div class="settings-grid">
+                      <div class="form-group" style="grid-column: span 2;">
+                          <label class="compact-form-label" for="hostName">Nazwa wyświetlana</label>
+                          <input type="text" class="compact-form-input" id="hostName" placeholder="np. Ubuntu VPS">
+                      </div>
+
+                      <!-- Roles -->
+                      <div class="form-group" style="grid-column: span 2;">
+                           <div class="compact-form-label">Role hosta</div>
+                           <div class="flex gap-md mt-2">
+                               <label class="compact-checkbox-label">
+                                   <input type="checkbox" id="hostRoleWorker" class="compact-checkbox">
+                                   <span class="compact-checkbox-span">Worker (OCR)</span>
+                               </label>
+                               <label class="compact-checkbox-label">
+                                   <input type="checkbox" id="hostRoleBrowser" class="compact-checkbox">
+                                   <span class="compact-checkbox-span">Browser (Playwright)</span>
+                               </label>
+                           </div>
+                      </div>
 
                     <!-- Worker / Common Settings -->
                     <div class="settings-section-divider text-sm font-medium text-secondary" style="grid-column: span 2;">Połączenie SSH</div>
@@ -10058,6 +10058,14 @@
           }
       }
 
+      document.addEventListener("keydown", (event) => {
+          if (event.key !== "Escape") return;
+          const modal = document.getElementById("hostPostgresConfirmModal");
+          if (modal && modal.classList.contains("visible")) {
+              closePostgresConfirmModal();
+          }
+      });
+
       ["hostAddress", "hostUser", "hostRepoDir", "hostPythonPath"].forEach((id) => {
           const el = document.getElementById(id);
           if (el) {
@@ -10176,7 +10184,13 @@
           };
       }
 
-      async function deployAndSaveHost(index, hostAddress, user, sshOpts) {
+      async function deployAndSaveHost(
+          index,
+          hostAddress,
+          user,
+          sshOpts,
+          { skipPostgresConfirm = false } = {},
+      ) {
           const osType = document.querySelector('input[name="hostDeployOs"]:checked')?.value || 'ubuntu';
           const hostName = document.getElementById("hostName").value.trim();
 
@@ -10189,6 +10203,13 @@
               nas_password: document.getElementById('hostDeployNasPass').value,
               install_postgres: document.getElementById('hostDeployPostgres').checked ? 'yes' : 'no'
           };
+
+          if (config.install_postgres === 'yes' && !skipPostgresConfirm) {
+              pendingPostgresDeploy = { index, hostAddress, user, sshOpts };
+              const modal = document.getElementById("hostPostgresConfirmModal");
+              if (modal) modal.classList.add("visible");
+              return;
+          }
 
           // Disable save button during deployment
           const saveBtn = document.getElementById('hostSaveBtn');

@@ -8,7 +8,7 @@ and best-effort result persistence.
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -647,16 +647,14 @@ class DbLockingManager:
                 return v
             if isinstance(v, (int, float)):
                 try:
-                    return datetime.fromtimestamp(float(v), tz=datetime.UTC)
+                    return datetime.fromtimestamp(float(v), tz=UTC)
                 except Exception:
                     return None
             return None
 
         start_dt = _to_dt(start_ts)
         end_dt = _to_dt(end_ts)
-        created_dt = (
-            created_at if isinstance(created_at, datetime) else datetime.now(tz=datetime.UTC)
-        )
+        created_dt = created_at if isinstance(created_at, datetime) else datetime.now(tz=UTC)
 
         if "." in self.pg_table:
             table_schema, table_name = self.pg_table.split(".", 1)
@@ -1000,7 +998,7 @@ class DbLockingManager:
             if not updates:
                 return
 
-            updates["last_updated"] = datetime.now(tz=datetime.UTC)
+            updates["last_updated"] = datetime.now(tz=UTC)
 
             # Handle JSON serialization for meta
             if "meta" in updates and isinstance(updates["meta"], dict):
