@@ -165,23 +165,18 @@ def main():
             current_url = page.url
             if "gemini.google.com" in current_url and "accounts.google.com" not in current_url:
                 logger.info("✅ Already logged in! Session is valid.")
-                logger.info("Saving session (waiting 3s)...")
-                time.sleep(3)
-                logger.info("Session confirmed. Closing browser.")
-                return
-
+                logger.info("Browser will stay open - close it manually when ready.")
+                # Don't return - let browser stay open
             # If we have credentials, try auto-login
-            if auto_login.can_auto_login():
+            elif auto_login.can_auto_login():
                 logger.info("Credentials found. Attempting auto-login...")
                 try:
                     if auto_login.perform_login(page):
                         logger.info("✅ Auto-login successful!")
-                        # Keep browser open briefly to save session
-                        logger.info("Saving session (waiting 5s)...")
-                        time.sleep(5)
-                        logger.info("Session saved. Closing browser.")
-                        return
-                    logger.warning("❌ Auto-login failed.")
+                        logger.info("Browser will stay open - close it manually when ready.")
+                        # Don't return - let browser stay open
+                    else:
+                        logger.warning("❌ Auto-login failed.")
                 except Exception as e:
                     logger.error(f"Auto-login error: {e}")
             else:
@@ -189,9 +184,10 @@ def main():
                     "Cannot auto-login - missing email/password in config/credentials.json"
                 )
 
-            logger.info("\n=== LOGIN MODE ACTIVE ===")
-            logger.info("Waiting for browser to close or auto-login to complete...")
-            logger.info("=========================\n")
+            logger.info("\n=== BROWSER READY ===")
+            logger.info("Browser will stay open. Close it manually when you're done.")
+            logger.info("Session will be saved automatically.")
+            logger.info("=====================\n")
 
         while True:
             time.sleep(1)
