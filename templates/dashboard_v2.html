@@ -5690,14 +5690,16 @@
                           const val = `${hid}|worker`;
                           const opt = document.createElement("option");
                           opt.value = val;
-                          opt.textContent = `${hid} (Worker)`;
+                          const hostName = host.name || host.host || "Host";
+                          opt.textContent = `${hostName} (Worker)`;
                           select.appendChild(opt);
                       }
                       if (hasBrowser) {
                           const val = `${hid}|browser`;
                           const opt = document.createElement("option");
                           opt.value = val;
-                          opt.textContent = `${hid} (Browser)`;
+                          const hostName = host.name || host.host || "Host";
+                          opt.textContent = `${hostName} (Browser)`;
                           select.appendChild(opt);
                       }
                   });
