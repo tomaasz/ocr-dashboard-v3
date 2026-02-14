@@ -584,7 +584,7 @@ def _get_repo_status(host: dict) -> dict:  # noqa: PLR0911
 
 
 def _update_repo(host: dict) -> dict:
-    """Update git repo on a remote host via git pull.
+    """Update git repo on a remote host, discarding local changes.
 
     Returns a dict with status info. If Tailscale auth is needed,
     includes 'auth_urls' list with authentication URLs.
@@ -599,6 +599,8 @@ def _update_repo(host: dict) -> dict:
         return err
 
     if _is_windows_repo(host, repo_dir):
+        reset_cmd = _win_git_cmd(repo_dir, "reset --hard")
+        clean_cmd = _win_git_cmd(repo_dir, "clean -fd")
         pull_cmd = _win_git_cmd(repo_dir, "pull --ff-only")
     else:
         # Auto-fix orphaned repos: if no upstream is set, try to set it
@@ -621,7 +623,32 @@ def _update_repo(host: dict) -> dict:
             _fix_result, fix_auth = _run_ssh_command(host, fix_cmd, timeout=30)
             auth.extend(fix_auth)
 
+        reset_cmd = _bash_cmd(f"cd {shlex.quote(repo_dir)} && git reset --hard")
+        clean_cmd = _bash_cmd(f"cd {shlex.quote(repo_dir)} && git clean -fd")
         pull_cmd = _bash_cmd(f"cd {shlex.quote(repo_dir)} && git pull --ff-only")
+
+    reset, auth_urls = _run_ssh_command(host, reset_cmd, timeout=60)
+    auth.extend(auth_urls)
+    if reset.returncode != 0:
+        return _result_with_auth(
+            {
+                "status": "error",
+                "message": (reset.stderr or reset.stdout).strip() or "git reset failed",
+            },
+            auth,
+        )
+
+    clean, auth_urls = _run_ssh_command(host, clean_cmd, timeout=60)
+    auth.extend(auth_urls)
+    if clean.returncode != 0:
+        return _result_with_auth(
+            {
+                "status": "error",
+                "message": (clean.stderr or clean.stdout).strip() or "git clean failed",
+            },
+            auth,
+        )
+
     pull, auth_urls = _run_ssh_command(host, pull_cmd, timeout=60)
     auth.extend(auth_urls)
     if pull.returncode != 0:
