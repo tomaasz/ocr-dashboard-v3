@@ -10382,8 +10382,11 @@
       // ============================================
 
       let loginLogInterval = null;
+      let activeLoginProfile = null;
 
       async function loginProfile(profileName) {
+        activeLoginProfile = profileName;
+        
         showToast(
           "info",
           "Logowanie...",
@@ -10400,7 +10403,7 @@
 
         // Start polling logs immediately
         if (loginLogInterval) clearInterval(loginLogInterval);
-        loginLogInterval = setInterval(() => fetchLoginLog(profileName), 1000);
+        loginLogInterval = setInterval(() => fetchLoginLog(activeLoginProfile), 1000);
 
         try {
           const response = await fetch("/api/profiles/login", {
@@ -10427,6 +10430,12 @@
       }
 
       async function fetchLoginLog(profileName) {
+        // Ignore stale requests for old profiles
+        if (profileName !== activeLoginProfile) {
+          console.warn(`Ignoring stale login log request for ${profileName}, active: ${activeLoginProfile}`);
+          return;
+        }
+        
         try {
           const res = await fetch(
             `/api/profiles/login/log?name=${profileName}&tail=200`,
@@ -10434,6 +10443,12 @@
           if (res.ok) {
             const data = await res.json();
             if (data.log) {
+              // Double-check profile hasn't changed during fetch
+              if (profileName !== activeLoginProfile) {
+                console.warn(`Profile changed during fetch, ignoring logs for ${profileName}`);
+                return;
+              }
+              
               const el = document.getElementById("loginLogContent");
               // Only update/scroll if content changed substantially or first load
               if (el.textContent.length !== data.log.length) {
@@ -10449,6 +10464,11 @@
 
       function closeLoginLogModal() {
         document.getElementById("loginLogModal").classList.remove("visible");
+        activeLoginProfile = null;
+        if (loginLogInterval) {
+          clearInterval(loginLogInterval);
+          loginLogInterval = null;
+        }
         if (loginEventSource) {
           loginEventSource.close();
           loginEventSource = null;
