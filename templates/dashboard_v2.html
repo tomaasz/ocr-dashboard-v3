@@ -10176,10 +10176,22 @@
                                       document.getElementById("hostPythonPath").value = `${installDir}/venv/bin/python3`;
                                   }
                                   if (!document.getElementById("hostChromeBin").value.trim()) {
-                                      document.getElementById("hostChromeBin").value = osType === 'arch' ? '/usr/bin/chromium' : '/usr/bin/google-chrome';
+                                      // Detect chrome binary on the remote host via SSH
+                                      try {
+                                          const detectResp = await fetch(`/api/settings/remote-host/detect-chrome?host=${encodeURIComponent(hostAddress)}&user=${encodeURIComponent(user)}&ssh_opts=${encodeURIComponent(sshOpts)}`);
+                                          if (detectResp.ok) {
+                                              const detectData = await detectResp.json();
+                                              if (detectData.chrome_bin) {
+                                                  document.getElementById("hostChromeBin").value = detectData.chrome_bin;
+                                              }
+                                          }
+                                      } catch (_e) {
+                                          // Fallback to common paths
+                                          document.getElementById("hostChromeBin").value = osType === 'arch' ? '/usr/bin/chromium' : '/usr/bin/google-chrome';
+                                      }
                                   }
                                   if (!document.getElementById("hostProfileRoot").value.trim()) {
-                                      document.getElementById("hostProfileRoot").value = `${installDir}/chrome-profiles`;
+                                      document.getElementById("hostProfileRoot").value = `/home/${user}/.cache/ocr-dashboard-v3`;
                                   }
 
                                   // Now save the host

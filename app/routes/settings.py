@@ -519,7 +519,7 @@ def _compute_sync_status(behind: int, ahead: int) -> str:
     return "diverged"
 
 
-def _get_repo_status(host: dict) -> dict:
+def _get_repo_status(host: dict) -> dict:  # noqa: PLR0911
     """Get git repo status for a remote host.
 
     Returns a dict with status info. If Tailscale auth is needed,
@@ -782,10 +782,7 @@ def _build_linux_host_preset(
     chrome_bin: str,
 ) -> dict[str, str]:
     venv_python = repo_dir / "venv" / "bin" / "python3"
-    if venv_python.exists():
-        python_cmd = str(venv_python)
-    else:
-        python_cmd = sys.executable or "python3"
+    python_cmd = str(venv_python) if venv_python.exists() else sys.executable or "python3"
     return {
         "os_type": "linux",
         "user": user,
@@ -826,6 +823,28 @@ def get_local_remote_host_defaults():
         "linux": linux_preset,
         "windows": windows_preset,
     }
+
+
+@router.get("/settings/remote-host/detect-chrome")
+def detect_remote_chrome(
+    host: str = "",
+    user: str = "",
+    ssh_opts: str = "",
+):
+    """Detect Chrome/Chromium binary path on a remote host via SSH."""
+    host = validate_hostname(host.strip())
+    user = validate_username(user.strip())
+    ssh_opts = validate_ssh_opts(ssh_opts.strip())
+    if not host or not user:
+        raise HTTPException(status_code=400, detail="Host and user required")
+
+    candidates = ("google-chrome", "chromium", "chromium-browser", "chrome")
+    which_cmd = " || ".join(f"which {c} 2>/dev/null" for c in candidates)
+    result = _run_ssh_check(user, host, ssh_opts, f"{{ {which_cmd}; }} | head -1")
+    chrome_bin = (
+        (result.stdout or "").strip().split("\n")[0].strip() if result.returncode == 0 else ""
+    )
+    return {"chrome_bin": chrome_bin}
 
 
 @router.get("/source-info")
@@ -1334,7 +1353,7 @@ def _build_item_path(base_path: str, name: str, os_type: str) -> str:
         504: {"description": "SSH connection timeout"},
     },
 )
-def browse_directory(
+def browse_directory(  # noqa: PLR0912
     host_id: str | None = None,
     host: str | None = None,
     user: str | None = None,
@@ -1519,7 +1538,7 @@ def _path_check(
         504: {"description": "SSH connection timeout"},
     },
 )
-def test_remote_host(payload: dict = Body(default_factory=dict)):
+def test_remote_host(payload: dict = Body(default_factory=dict)):  # noqa: PT028
     """Run connectivity and path checks for a (possibly unsaved) remote host config."""
     host = validate_hostname(str(payload.get("host", "")).strip())
     user = validate_username(str(payload.get("user", "")).strip())
