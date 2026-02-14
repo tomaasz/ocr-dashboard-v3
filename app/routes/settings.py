@@ -1494,8 +1494,10 @@ def _run_ssh_check(
 
 
 def _linux_path_check_cmd(path: str, expect_dir: bool) -> str:
-    check_flag = "-d" if expect_dir else "-x"
-    return f"test {check_flag} {shlex.quote(path)} && echo OK || echo MISSING"
+    if expect_dir:
+        return f"test -d {shlex.quote(path)} && echo OK || echo MISSING"
+    # Use 'command -v' to check for executable in PATH or absolute path
+    return f"command -v {shlex.quote(path)} >/dev/null 2>&1 && echo OK || echo MISSING"
 
 
 def _windows_path_check_cmd(path: str, expect_dir: bool) -> str:
