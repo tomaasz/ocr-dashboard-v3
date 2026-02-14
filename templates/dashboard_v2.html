@@ -3381,6 +3381,23 @@
                         </div>
                     </div>
 
+                    <!-- Host Test Result -->
+                    <div id="hostTestResultContainer" style="grid-column: span 2; display: none; margin-top: 12px;">
+                        <div class="settings-section-divider text-sm font-medium text-secondary">Wynik testu hosta</div>
+                        <div id="hostTestResult" style="
+                            background: #0f172a;
+                            color: #e2e8f0;
+                            padding: 12px;
+                            border-radius: 8px;
+                            font-family: 'JetBrains Mono', monospace;
+                            font-size: 11px;
+                            max-height: 220px;
+                            overflow-y: auto;
+                            margin-top: 8px;
+                            white-space: pre-wrap;
+                        ">Brak testu.</div>
+                    </div>
+
                 </div>
             </div>
             <div class="modal-footer">
@@ -9727,6 +9744,7 @@
         document.getElementById("hostAutoDeploy").checked = false;
         document.getElementById("hostDeploySection").style.display = "none";
         document.getElementById("hostDeployLogContainer").style.display = "none";
+        clearHostTestResult();
         document.getElementById("hostDeploySudoPass").value = "";
         document.getElementById("hostDeployGithubRepo").value = "https://github.com/tomaasz/ocr-dashboard-v3";
         document.getElementById("hostDeployNasHost").value = "100.80.240.52";
@@ -9781,6 +9799,7 @@
           document.getElementById("hostAutoDeploy").checked = false;
           document.getElementById("hostDeploySection").style.display = "none";
           document.getElementById("hostDeployLogContainer").style.display = "none";
+          clearHostTestResult();
           document.getElementById("hostSaveBtn").textContent = "Zapisz";
           document.getElementById("hostSaveBtn").disabled = false;
           updateHostTestButtonState();
@@ -9824,6 +9843,58 @@
           document.getElementById("hostConfigModal").classList.remove("visible");
       }
 
+      function clearHostTestResult() {
+          const container = document.getElementById("hostTestResultContainer");
+          const panel = document.getElementById("hostTestResult");
+          if (!container || !panel) return;
+          container.style.display = "none";
+          panel.textContent = "Brak testu.";
+      }
+
+      function _hostCheckLabel(key) {
+          const labels = {
+              ssh: "SSH",
+              repo: "Repo",
+              python: "Python",
+              profile_root: "Profile Root",
+              chrome_bin: "Chrome Binary",
+          };
+          return labels[key] || key;
+      }
+
+      function renderHostTestResult(data, fallbackMessage = "") {
+          const container = document.getElementById("hostTestResultContainer");
+          const panel = document.getElementById("hostTestResult");
+          if (!container || !panel) return;
+
+          container.style.display = "block";
+
+          if (!data || typeof data !== "object") {
+              panel.textContent = fallbackMessage || "Brak danych testu.";
+              return;
+          }
+
+          const checks = data.checks && typeof data.checks === "object" ? data.checks : {};
+          const lines = [];
+          lines.push(data.success ? "✅ Test hosta: OK" : "❌ Test hosta: NIEPOWODZENIE");
+
+          const keys = Object.keys(checks);
+          if (keys.length === 0) {
+              if (fallbackMessage) lines.push(fallbackMessage);
+          } else {
+              keys.forEach((key) => {
+                  const entry = checks[key] || {};
+                  const ok = entry.ok === true;
+                  const marker = ok ? "✅" : "❌";
+                  const label = _hostCheckLabel(key);
+                  const output = String(entry.output || entry.message || "").trim();
+                  lines.push(`${marker} ${label}${output ? ` -> ${output}` : ""}`);
+              });
+          }
+
+          panel.textContent = lines.join("\n");
+      }
+
       function onHostOsTypeChanged() {
           const osType = document.getElementById("hostOsType")?.value || "linux";
           const index = parseInt(document.getElementById("editHostIndex")?.value || "-1", 10);
@@ -9853,6 +9924,7 @@
 
           const btn = document.getElementById("hostTestBtn");
           const originalText = btn ? btn.textContent : "Test hosta";
+          renderHostTestResult(null, "⏳ Trwa testowanie...");
           if (btn) {
               btn.disabled = true;
               btn.textContent = "Testowanie...";
@@ -9877,10 +9949,12 @@
               });
               const data = await response.json().catch(() => ({}));
               if (!response.ok) {
+                  renderHostTestResult(data, data.detail || "Błąd testu hosta");
                   showToast("error", "Test hosta", data.detail || "Błąd testu hosta");
                   return;
               }
 
+              renderHostTestResult(data);
               if (data.success) {
                   showToast("success", "Test hosta", "Połączenie SSH i ścieżki są poprawne");
               } else {
@@ -9891,6 +9965,7 @@
                   showToast("error", "Test hosta", failed ? `Niepowodzenie: ${failed}` : "Test nieudany");
               }
           } catch (e) {
+              renderHostTestResult(null, e.message || "Błąd testu hosta");
               showToast("error", "Test hosta", e.message || "Błąd testu hosta");
           } finally {
               if (btn) {

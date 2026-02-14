@@ -87,37 +87,53 @@ install_system_packages() {
     log_info "Installing system packages..."
     
     sudo apt-get update
-    sudo apt-get install -y \
-        git \
-        rsync \
-        python3 \
-        python3-pip \
-        python3-venv \
-        cifs-utils \
-        curl \
-        wget \
-        build-essential \
-        libpq-dev \
-        chromium-browser \
-        fonts-liberation \
-        libasound2 \
-        libatk-bridge2.0-0 \
-        libatk1.0-0 \
-        libatspi2.0-0 \
-        libcups2 \
-        libdbus-1-3 \
-        libdrm2 \
-        libgbm1 \
-        libgtk-3-0 \
-        libnspr4 \
-        libnss3 \
-        libwayland-client0 \
-        libxcomposite1 \
-        libxdamage1 \
-        libxfixes3 \
-        libxkbcommon0 \
-        libxrandr2 \
+
+    local alsa_pkg=""
+    if apt-cache show libasound2t64 >/dev/null 2>&1; then
+        alsa_pkg="libasound2t64"
+    elif apt-cache show libasound2 >/dev/null 2>&1; then
+        alsa_pkg="libasound2"
+    fi
+    if [[ -z "$alsa_pkg" ]]; then
+        log_warning "Could not detect libasound2/libasound2t64 package name; continuing"
+    fi
+
+    local packages=(
+        git
+        rsync
+        python3
+        python3-pip
+        python3-venv
+        cifs-utils
+        curl
+        wget
+        build-essential
+        libpq-dev
+        chromium-browser
+        fonts-liberation
+        libatk-bridge2.0-0
+        libatk1.0-0
+        libatspi2.0-0
+        libcups2
+        libdbus-1-3
+        libdrm2
+        libgbm1
+        libgtk-3-0
+        libnspr4
+        libnss3
+        libwayland-client0
+        libxcomposite1
+        libxdamage1
+        libxfixes3
+        libxkbcommon0
+        libxrandr2
         xdg-utils
+    )
+    if [[ -n "$alsa_pkg" ]]; then
+        packages+=("$alsa_pkg")
+    fi
+
+    sudo apt-get install -y "${packages[@]}"
     
     log_success "System packages installed"
 }
