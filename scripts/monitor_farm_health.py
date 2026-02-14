@@ -27,7 +27,6 @@ import sys
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 try:
     import psycopg2
@@ -103,7 +102,7 @@ class FarmHealthMonitor:
             print(f"ERROR: Failed to connect to database: {e}", file=sys.stderr)
             return None
 
-    def _check_farm_processes(self) -> Tuple[int, List[str]]:
+    def _check_farm_processes(self) -> tuple[int, list[str]]:
         processes = []
         profiles = []
 
@@ -143,7 +142,7 @@ class FarmHealthMonitor:
 
         return len(processes), profiles
 
-    def _check_web_api(self, process_count: int = 0) -> Tuple[bool, Optional[int], Optional[str]]:
+    def _check_web_api(self, process_count: int = 0) -> tuple[bool, int | None, str | None]:
         if not HAS_REQUESTS:
             return False, None, "requests library not available"
 
@@ -177,11 +176,11 @@ class FarmHealthMonitor:
         except Exception as e:
             return False, None, f"Error: {str(e)[:100]}"
 
-    def _get_system_load(self) -> Dict:
-        metrics: Dict[str, float | int] = {}
+    def _get_system_load(self) -> dict:
+        metrics: dict[str, float | int] = {}
 
         try:
-            with open("/proc/stat", "r", encoding="utf-8") as f:
+            with open("/proc/stat", encoding="utf-8") as f:
                 cpu_line = f.readline()
                 cpu_values = [int(x) for x in cpu_line.split()[1:]]
                 cpu_total = sum(cpu_values)
@@ -192,7 +191,7 @@ class FarmHealthMonitor:
             pass
 
         try:
-            with open("/proc/meminfo", "r", encoding="utf-8") as f:
+            with open("/proc/meminfo", encoding="utf-8") as f:
                 meminfo = {}
                 for line in f:
                     parts = line.split(":")
@@ -227,12 +226,12 @@ class FarmHealthMonitor:
         self,
         is_healthy: bool,
         process_count: int,
-        active_profiles: List[str],
+        active_profiles: list[str],
         web_api_ok: bool,
-        web_api_time: Optional[int],
-        web_api_error: Optional[str],
-        system_load: Dict,
-        error_details: Optional[str],
+        web_api_time: int | None,
+        web_api_error: str | None,
+        system_load: dict,
+        error_details: str | None,
     ) -> bool:
         conn = self._get_connection()
         if not conn:
@@ -275,7 +274,7 @@ class FarmHealthMonitor:
         finally:
             conn.close()
 
-    def run_once(self) -> Tuple[bool, str]:
+    def run_once(self) -> tuple[bool, str]:
         process_count, profiles = self._check_farm_processes()
         web_ok, web_time, web_error = self._check_web_api(process_count)
         system_load = self._get_system_load()

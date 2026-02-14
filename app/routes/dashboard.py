@@ -9,11 +9,11 @@ import os
 import shlex
 import socket
 import subprocess
-from urllib.parse import urlparse
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated, Any
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import HTMLResponse
@@ -258,7 +258,6 @@ def _update_processed_stats(cur, table_id, session_rows, stats):
         import traceback
 
         traceback.print_exc()
-        pass
 
 
 def _update_token_stats(cur, session_rows, stats):
@@ -1236,7 +1235,7 @@ def _parse_ps_output(output: str, limit: int = 5) -> list[dict[str, Any]]:
 
 def _get_local_top_processes(limit: int = 5) -> list[dict[str, Any]]:
     try:
-        cmd = "LC_ALL=C ps -eo pid,comm,pcpu,pmem --sort=-pcpu | head -n {}".format(limit + 1)
+        cmd = f"LC_ALL=C ps -eo pid,comm,pcpu,pmem --sort=-pcpu | head -n {limit + 1}"
         result = subprocess.run(
             ["sh", "-lc", cmd],
             capture_output=True,
@@ -1380,7 +1379,7 @@ def _get_remote_top_processes(
     if not host or not user:
         return []
     try:
-        cmd = "LC_ALL=C ps -eo pid,comm,pcpu,pmem --sort=-pcpu | head -n {}".format(limit + 1)
+        cmd = f"LC_ALL=C ps -eo pid,comm,pcpu,pmem --sort=-pcpu | head -n {limit + 1}"
         result = _run_ssh_command(host, user, ssh_opts, f"sh -lc {shlex.quote(cmd)}")
         if result.returncode == 0 and result.stdout.strip():
             parsed = _parse_ps_output(result.stdout, limit=limit)

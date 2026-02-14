@@ -6,8 +6,6 @@ Tests PostgreSQL connection utilities.
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from app.utils.db import (
     execute_query,
     execute_single,

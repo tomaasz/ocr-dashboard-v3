@@ -6,7 +6,7 @@ Additional tests for database operations, SSH functions, and complex API endpoin
 
 import subprocess
 from datetime import UTC, datetime
-from unittest.mock import ANY, MagicMock, Mock, call, patch
+from unittest.mock import Mock, patch
 
 import pytest
 

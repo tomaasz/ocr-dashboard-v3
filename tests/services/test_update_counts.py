@@ -8,8 +8,6 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from app.services.update_counts import (
     _coerce_bool,
     _load_seen_paths,
@@ -186,7 +184,7 @@ class TestLoadSaveSeenPaths:
 
         mock_file.write_text.assert_called_once()
         call_args = mock_file.write_text.call_args[0][0]
-        assert "path1\npath2\npath3\n" == call_args
+        assert call_args == "path1\npath2\npath3\n"
 
 
 class TestLoadUpdateCountsConfig:

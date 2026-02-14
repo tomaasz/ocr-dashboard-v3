@@ -4,9 +4,8 @@ Tests for app.services.source_resolver module.
 Tests source path resolution and provider abstraction.
 """
 
-import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 

@@ -17,7 +17,7 @@ import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from enum import Enum
 from pathlib import Path
 
@@ -27,7 +27,7 @@ from playwright.sync_api import BrowserContext, Page
 from ocr_engine.utils.activity_logger import ActivityLogger
 from ocr_engine.utils.path_security import sanitize_profile_name, validate_profiles_dir
 
-from .browser_controller import _PRO_MODEL_RE, GeminiBrowserController, SessionExpiredError
+from .browser_controller import GeminiBrowserController, SessionExpiredError
 from .db_locking import DbLockingManager
 from .image_processor import clear_temp_images, preprocess_image_smart
 from .pro_limit_handler import PRO_LIMIT_TEXT_RE, ProLimitHandler
@@ -77,7 +77,6 @@ class PageWorker:
 class BrowserCrashedError(Exception):
     """Raised when the browser instance has crashed or closed unexpectedly."""
 
-    pass
 
 
 class GeminiEngine:
@@ -814,12 +813,12 @@ class GeminiEngine:
             # Check if we have recent cached index from background indexer
             stats = self.db.get_source_path_stats(source_key)
             if stats and stats.get("last_updated"):
-                from datetime import datetime, timezone
+                from datetime import datetime
 
                 last_updated = stats["last_updated"]
                 if hasattr(last_updated, "tzinfo") and last_updated.tzinfo is None:
-                    last_updated = last_updated.replace(tzinfo=timezone.utc)
-                now = datetime.now(timezone.utc)
+                    last_updated = last_updated.replace(tzinfo=UTC)
+                now = datetime.now(UTC)
                 age_minutes = (now - last_updated).total_seconds() / 60
 
                 if age_minutes < 30:
@@ -830,8 +829,7 @@ class GeminiEngine:
                         f"{age_minutes:.0f}m old) for {source_key}"
                     )
                     return
-                else:
-                    logger.info(f"📂 [Counts] Cache stale ({age_minutes:.0f}m), re-indexing...")
+                logger.info(f"📂 [Counts] Cache stale ({age_minutes:.0f}m), re-indexing...")
 
             # No cache or stale - do full scan
             count = self.db.sync_folder_entries(source_key)
@@ -1632,8 +1630,7 @@ class GeminiEngine:
                             f"➡️ [AutoAdvance] DB queue found folder with pending files: {next_path}"
                         )
                         return next_path
-                    else:
-                        logger.warning(f"[AutoAdvance] DB queue path not accessible: {next_source}")
+                    logger.warning(f"[AutoAdvance] DB queue path not accessible: {next_source}")
             except Exception as e:
                 logger.debug(f"[AutoAdvance] DB queue check failed: {e}")
 

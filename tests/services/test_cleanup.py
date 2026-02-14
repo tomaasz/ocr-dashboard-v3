@@ -4,10 +4,7 @@ Tests for app.services.cleanup module.
 Tests cleanup functionality for temporary folders.
 """
 
-import shutil
-from pathlib import Path
 
-import pytest
 
 from app.services.cleanup import DEFAULT_CLEANUP_TARGETS, cleanup_folders
 

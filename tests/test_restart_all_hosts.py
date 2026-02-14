@@ -1,7 +1,5 @@
 import subprocess
 
-import pytest
-
 from app.routes import settings as settings_routes
 
 

@@ -3,9 +3,9 @@
 Verify source directories are accessible on remote hosts before starting profiles
 """
 
-import sys
-import subprocess
 import shlex
+import subprocess
+import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
@@ -55,8 +55,7 @@ def check_remote_directory(host_addr, host_user, ssh_opts, path):
         if result.returncode == 0:
             count = int(result.stdout.strip()) - 2  # Subtract . and ..
             return True, f"✅ Accessible ({count} items)"
-        else:
-            return False, "❌ Directory not found or not accessible"
+        return False, "❌ Directory not found or not accessible"
     except subprocess.TimeoutExpired:
         return False, "❌ SSH timeout"
     except Exception as e:
@@ -123,11 +122,10 @@ def main():
         print("✅ All source directories are accessible!")
         print("=" * 80)
         return 0
-    else:
-        print("❌ Some source directories are NOT accessible!")
-        print("   Fix the issues above before starting profiles")
-        print("=" * 80)
-        return 1
+    print("❌ Some source directories are NOT accessible!")
+    print("   Fix the issues above before starting profiles")
+    print("=" * 80)
+    return 1
 
 
 if __name__ == "__main__":

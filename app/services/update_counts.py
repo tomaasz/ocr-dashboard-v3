@@ -6,12 +6,11 @@ import asyncio
 import json
 import subprocess
 import time
-from pathlib import Path
 
 from ..config import (
     BASE_DIR,
-    UPDATE_COUNTS_MIN_INTERVAL_SEC,
     UPDATE_COUNTS_CONFIG_FILE,
+    UPDATE_COUNTS_MIN_INTERVAL_SEC,
     UPDATE_COUNTS_NOTIFY_ENABLED,
     UPDATE_COUNTS_ON_NEW_PATHS,
     UPDATE_COUNTS_ON_START,

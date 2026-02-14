@@ -7,16 +7,16 @@ banner, and writes pause files used by OCR runners.
 """
 
 import argparse
-import os
 import json
-import shutil
+import os
+import platform
 import re
+import shutil
 import sys
 import time
-import platform
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Optional, Set, Tuple, Dict, Any
+from typing import Any
 
 from playwright.sync_api import sync_playwright
 
@@ -49,7 +49,7 @@ _PRO_MODEL_RE = re.compile(r"(\bPro\b|1\.5\s*Pro|2\.0\s*Pro)", re.IGNORECASE)
 _FAST_MODEL_RE = re.compile(r"(Szybki|Fast|Flash|1\.5\s*Flash|2\.0\s*Flash)", re.IGNORECASE)
 
 
-def _normalize_check_data(d: Dict[str, Any]) -> Dict[str, Any]:
+def _normalize_check_data(d: dict[str, Any]) -> dict[str, Any]:
     normalized = dict(d or {})
     normalized.setdefault("limit_detected_method", "none")
     normalized.setdefault("model_initial", "unknown")
@@ -117,7 +117,7 @@ def _profile_name_from_dir(dir_name: str) -> str:
     return dir_name
 
 
-def _iter_profiles(base_dir: Path, only: Optional[Set[str]]):
+def _iter_profiles(base_dir: Path, only: set[str] | None):
     if not base_dir.exists():
         return []
     profiles = []
@@ -159,7 +159,7 @@ def _clear_pause(cache_dir: Path, profile_name: str):
     db.set_profile_state(profile_name, is_paused=False, pause_until=None, pause_reason=None)
 
 
-def _log_check_to_db(check_data: Dict[str, Any]) -> bool:
+def _log_check_to_db(check_data: dict[str, Any]) -> bool:
     """Log a limit check result to PostgreSQL database."""
     if not DB_LOG_ENABLED or not HAS_PSYCOPG2:
         return False
@@ -309,7 +309,7 @@ def _log_check_to_db(check_data: Dict[str, Any]) -> bool:
         conn.close()
 
 
-def _write_limit_proof(page, profile_name: str, cache_dir: Path, run_id: str) -> Tuple[Optional[str], Optional[int]]:
+def _write_limit_proof(page, profile_name: str, cache_dir: Path, run_id: str) -> tuple[str | None, int | None]:
     safe_profile = re.sub(r"[^a-zA-Z0-9_.-]+", "_", profile_name)
     cache_path = cache_dir / f"limit_proof_{safe_profile}.jpg"
     cache_run_path = cache_dir / f"limit_proof_{safe_profile}_{run_id}.jpg"
@@ -376,7 +376,7 @@ def _find_model_button(page):
     return None
 
 
-def _detect_model_label(page) -> Optional[str]:
+def _detect_model_label(page) -> str | None:
     try:
         loc = _find_model_button(page)
         if not loc:
@@ -398,8 +398,8 @@ def _find_prompt_box(page, timeout_ms: int = 8000):
     selectors = [
         'div[contenteditable="true"]',
         'rich-textarea [contenteditable="true"]',
-        'textarea[placeholder]',
-        '.ql-editor',
+        "textarea[placeholder]",
+        ".ql-editor",
     ]
     for sel in selectors:
         try:
@@ -411,7 +411,7 @@ def _find_prompt_box(page, timeout_ms: int = 8000):
     return None
 
 
-def _ensure_pro_model(page) -> Optional[str]:
+def _ensure_pro_model(page) -> str | None:
     before = _detect_model_label(page) or "unknown"
     if re.search(_PRO_MODEL_RE, before):
         return before
@@ -480,7 +480,7 @@ def _check_profile(
 ):
     """Check if profile has Pro limit with proof (banner/menu + screenshot)."""
     check_start = time.time()
-    tracking: Dict[str, Any] = {
+    tracking: dict[str, Any] = {
         "run_id": run_id,
         "profile_name": profile_name,
         "profile_path": str(profile_path),
@@ -646,7 +646,7 @@ def _check_profile(
             email_match = re.search(r"[\w.+-]+@[\w-]+\.[\w.-]+", body_text)
             if email_match:
                 tracking["account_email"] = email_match.group(0)
-            
+
             # Check if limit banner already visible
             if re.search(PRO_LIMIT_TEXT_RE, body_text or ""):
                 limit_start = time.time()
@@ -781,7 +781,7 @@ def _check_profile(
                     tracking["prompt_sent"] = True
                     tracking["prompt_send_ms"] = int((time.time() - prompt_send_start) * 1000)
                     tracking["timings_breakdown"]["prompt_send"] = tracking["prompt_send_ms"]
-                    
+
                     # Multiple retries to detect banner with increasing waits
                     banner_detected = False
                     response_start = time.time()
@@ -789,9 +789,9 @@ def _check_profile(
                         wait_time = 3 + retry * 2  # 3s, 5s, 7s, 9s, 11s
                         time.sleep(wait_time)
                         tracking["retry_count"] = retry
-                        
+
                         body_text = page.locator("body").inner_text(timeout=5000)
-                        
+
                         # Check for limit banner after sending prompt
                         if re.search(PRO_LIMIT_TEXT_RE, body_text or ""):
                             print(f"  [{profile_name}] Limit banner detected on retry {retry+1}")
@@ -823,7 +823,7 @@ def _check_profile(
                             result["status"] = tracking["status"]
                             result["duration_ms"] = tracking["check_duration_ms"]
                             return {"tracking": tracking, **result}
-                        
+
                         # Also check menu text for limit info
                         menu_text = _read_model_menu_text(page)
                         tracking["menu_text"] = menu_text or tracking["menu_text"]
@@ -857,17 +857,17 @@ def _check_profile(
                             result["status"] = tracking["status"]
                             result["duration_ms"] = tracking["check_duration_ms"]
                             return {"tracking": tracking, **result}
-                        
+
                         # Check if model was forced to Fast/Flash
                         label = _detect_model_label(page) or ""
                         is_fast = re.search(_FAST_MODEL_RE, label) and not re.search(_PRO_MODEL_RE, label)
-                        
+
                         if is_fast:
                             # Model is on Fast - try to switch to Pro again to trigger banner
                             print(f"  [{profile_name}] Retry {retry+1}: Model on Fast, trying Pro switch...")
                             _ensure_pro_model(page)
                             time.sleep(1)
-                            
+
                             # Check body again after Pro switch attempt
                             body_text = page.locator("body").inner_text(timeout=5000)
                             if re.search(PRO_LIMIT_TEXT_RE, body_text or ""):
@@ -906,7 +906,7 @@ def _check_profile(
                             tracking["prompt_response_received"] = True
                             tracking["prompt_response_ms"] = int((time.time() - response_start) * 1000)
                             break
-                    
+
                     tracking["total_attempts"] = tracking["retry_count"] + 1
 
                     # After all retries, check final state
@@ -987,7 +987,7 @@ def _check_profile(
     return {"tracking": tracking, **result}
 
 
-def _summarize_results(results: List[Tuple[str, str, int]]) -> dict:
+def _summarize_results(results: list[tuple[str, str, int]]) -> dict:
     summary = {"ok": 0, "limit": 0, "error": 0, "skipped": 0, "total": len(results)}
     for _, status, _ in results:
         label = str(status or "").upper()
@@ -1005,13 +1005,13 @@ def _summarize_results(results: List[Tuple[str, str, int]]) -> dict:
 def _write_status(
     cache_dir: Path,
     run_id: str,
-    results: List[Tuple[str, str, int]],
+    results: list[tuple[str, str, int]],
     *,
     in_progress: bool = False,
-    total: Optional[int] = None,
-    started_at: Optional[str] = None,
-    current_profile: Optional[str] = None,
-    quick_mode: Optional[bool] = None,
+    total: int | None = None,
+    started_at: str | None = None,
+    current_profile: str | None = None,
+    quick_mode: bool | None = None,
 ):
     total = total if total is not None else len(results)
     summary = _summarize_results(results)
@@ -1037,7 +1037,7 @@ def _write_status(
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def _append_history(cache_dir: Path, run_id: str, results: List[Tuple[str, str, int]]):
+def _append_history(cache_dir: Path, run_id: str, results: list[tuple[str, str, int]]):
     path = cache_dir / "limit_precheck_history.json"
     entry = {
         "run_id": run_id,
@@ -1169,7 +1169,7 @@ def main():
 
         total_profiles = len(profiles)
 
-        def _progress_results() -> List[Tuple[str, str, int]]:
+        def _progress_results() -> list[tuple[str, str, int]]:
             return [(name, status, check_durations.get(name, 0)) for name, status in result_map.items()]
 
         _write_status(
@@ -1190,7 +1190,7 @@ def main():
             # Track start times
             for future, name in future_map.items():
                 check_start_times[name] = time.time()
-            
+
             for future in as_completed(future_map):
                 name = future_map[future]
                 check_duration_ms = int((time.time() - check_start_times.get(name, time.time())) * 1000)

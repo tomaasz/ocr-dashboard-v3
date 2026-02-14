@@ -4,10 +4,7 @@ Tests for app.utils.log_utils module.
 Tests log file reading and processing utilities.
 """
 
-import tempfile
-from pathlib import Path
 
-import pytest
 
 from app.utils.log_utils import (
     get_log_with_errors,

@@ -7,8 +7,6 @@ Tests remote configuration storage and retrieval.
 import json
 from unittest.mock import patch
 
-import pytest
-
 from app.services.remote_config import (
     _coerce_value,
     _parse_env_var,

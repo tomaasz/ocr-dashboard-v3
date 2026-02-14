@@ -4,7 +4,6 @@ Additional tests for app.utils.security module.
 Tests for profile_name, worker_id, wsl_distro, path, and ssh_opts validation.
 """
 
-import os
 
 import pytest
 
