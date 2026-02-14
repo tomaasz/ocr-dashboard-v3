@@ -3404,6 +3404,7 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" id="hostTestBtn" onclick="testHostConfig()" disabled>Test hosta</button>
                 <button class="btn btn-secondary" onclick="closeHostConfigModal()">Anuluj</button>
+                <button class="btn btn-secondary" id="hostCloseBtn" onclick="closeHostConfigModal()" style="display: none;">Zamknij</button>
                 <button class="btn btn-primary" id="hostSaveBtn" onclick="saveHostConfig()" data-remote-host-edit="true">Zapisz</button>
             </div>
           </div>
@@ -9778,6 +9779,8 @@
         document.getElementById("hostDeployPostgres").checked = false;
         document.getElementById("hostSaveBtn").textContent = "Zapisz";
         document.getElementById("hostSaveBtn").disabled = false;
+        const closeBtn = document.getElementById("hostCloseBtn");
+        if (closeBtn) closeBtn.style.display = "none";
 
         const defaults = await loadLocalHostDefaults();
         if (defaults) {
@@ -9826,6 +9829,8 @@
           clearHostTestResult();
           document.getElementById("hostSaveBtn").textContent = "Zapisz";
           document.getElementById("hostSaveBtn").disabled = false;
+          const closeBtn = document.getElementById("hostCloseBtn");
+          if (closeBtn) closeBtn.style.display = "none";
           updateHostTestButtonState();
 
           document.getElementById("hostConfigModal").classList.add("visible");
@@ -10328,6 +10333,8 @@
                                       renderRemoteHosts();
                                       logElement.innerHTML += `<span style="color: #4CAF50;">✓ Konfiguracja hosta zapisana</span>\n`;
                                       saveBtn.textContent = '✅ Gotowe';
+                                      const closeBtn = document.getElementById("hostCloseBtn");
+                                      if (closeBtn) closeBtn.style.display = "inline-flex";
                                       setTimeout(() => {
                                           saveBtn.disabled = false;
                                           saveBtn.textContent = '🚀 Deployuj & Zapisz';
