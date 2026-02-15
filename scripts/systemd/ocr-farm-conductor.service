@@ -1,0 +1,33 @@
+[Unit]
+Description=OCR Farm Conductor — Self-healing profile orchestrator
+After=network.target ocr-dashboard.service
+Wants=ocr-dashboard.service
+
+[Service]
+Type=simple
+User=tomaasz
+Group=tomaasz
+WorkingDirectory=/home/tomaasz/ocr-dashboard-v3
+
+EnvironmentFile=-/home/tomaasz/ocr-dashboard-v3/.env
+# Note: %% is used to escape % in systemd unit files
+Environment="OCR_PG_DSN=postgresql://tomaasz:123Karinka!%%40%%23@127.0.0.1:5432/ocr"
+Environment="PATH=/home/tomaasz/ocr-dashboard-v3/venv/bin:/usr/bin"
+Environment="PYTHONPATH=/home/tomaasz/ocr-dashboard-v3"
+Environment="FARM_DASHBOARD_URL=http://localhost:9090"
+Environment="FARM_CONFIG_PATH=/home/tomaasz/ocr-dashboard-v3/config/farm_profiles.json"
+
+ExecStart=/home/tomaasz/ocr-dashboard-v3/venv/bin/python /home/tomaasz/ocr-dashboard-v3/scripts/farm_conductor.py
+
+Restart=always
+RestartSec=10
+
+# Resource limits — conductor itself is lightweight
+Nice=19
+MemoryMax=256M
+
+StandardOutput=append:/home/tomaasz/ocr-dashboard-v3/logs/farm_conductor.service.log
+StandardError=append:/home/tomaasz/ocr-dashboard-v3/logs/farm_conductor.service.log
+
+[Install]
+WantedBy=multi-user.target
