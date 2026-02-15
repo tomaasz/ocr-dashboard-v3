@@ -19,6 +19,11 @@ Environment="OCR_PG_DSN=postgresql://tomaasz:123Karinka!%%40%%23@127.0.0.1:5432/
 Environment="OCR_SOURCE_ROOT=/data/sources"
 Environment="OCR_SOURCE_DIR=/mnt/nas_genealogy/Sources"
 
+# Farm operation: auto-advance through subdirs, use DB queue, run continuously
+Environment="OCR_AUTO_ADVANCE=1"
+Environment="OCR_PG_ENABLED=1"
+Environment="OCR_CONTINUOUS=1"
+
 # Desktop SSH (Windows -> WSL)
 Environment="OCR_REMOTE_DESKTOP_HOST=1dtw2.tail7319.ts.net"
 Environment="OCR_REMOTE_DESKTOP_USER=tomaa"
